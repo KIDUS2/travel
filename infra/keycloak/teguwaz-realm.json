@@ -1,0 +1,41 @@
+{
+  "realm": "teguwaz",
+  "enabled": true,
+  "displayName": "Teguwaz · ተጓዥ",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "am"],
+  "defaultLocale": "en",
+  "clients": [
+    {
+      "clientId": "teguwaz-web",
+      "name": "Teguwaz web app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "meron",
+      "email": "meron@example.com",
+      "emailVerified": true,
+      "firstName": "Meron",
+      "lastName": "T.",
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "teguwaz-dev", "temporary": false }
+      ]
+    }
+  ]
+}

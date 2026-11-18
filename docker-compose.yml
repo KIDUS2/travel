@@ -1,0 +1,45 @@
+# Local infrastructure for Teguwaz: PostgreSQL, Keycloak and MinIO.
+# Run the backend (mvn spring-boot:run) and frontend (npm run dev) on your machine.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: teguwaz
+      POSTGRES_USER: teguwaz
+      POSTGRES_PASSWORD: teguwaz
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teguwaz -d teguwaz"]
+      interval: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm", "--http-port=8180"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8180
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: teguwaz
+      MINIO_ROOT_PASSWORD: teguwaz-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+volumes:
+  pgdata:
+  miniodata:
