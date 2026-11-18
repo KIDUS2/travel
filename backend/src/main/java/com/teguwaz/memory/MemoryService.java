@@ -67,7 +67,7 @@ public class MemoryService {
 
         return existing
                 .switchIfEmpty(Mono.defer(() -> checkTrip(userId, req.tripId())
-                        .then(memories.save(newMemory(userId, req)))))
+                        .then(Mono.defer(() -> memories.save(newMemory(userId, req))))))
                 .flatMap(this::withMedia);
     }
 
