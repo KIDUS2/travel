@@ -6,6 +6,8 @@ export interface Me {
   email: string | null;
   displayName: string | null;
   preferredLanguage: 'en' | 'am';
+  role: 'USER' | 'ADMIN';
+  status: 'ACTIVE' | 'SUSPENDED';
   createdAt: string;
 }
 
@@ -144,18 +146,62 @@ export interface BookPhoto {
   url: string;
 }
 
-// ---- Connected accounts (Feature 4) ----
+// ---- Channels (Feature 4) ----
 
-export type Platform = 'youtube' | 'instagram' | 'tiktok';
+export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'x' | 'telegram' | 'website' | 'other';
 
-export interface ConnectionStatus {
+export interface PlatformInfo {
+  id: Platform;
+  name: string;
+  statsSupported: boolean;
+  statsAvailable: boolean;
+  setup: string;
+}
+
+/** A channel the user added by name and link; YouTube ones can be connected for stats. */
+export interface Channel {
+  id: string;
   platform: Platform;
-  available: boolean;
+  name: string;
+  url: string;
+  statsSupported: boolean;
+  statsAvailable: boolean;
   connected: boolean;
   accountName: string | null;
   connectedAt: string | null;
   lastSyncedAt: string | null;
-  setup: string;
+  createdAt: string;
+}
+
+export interface ChannelInput {
+  platform: Platform;
+  name: string;
+  url: string;
+}
+
+// ---- User management ----
+
+export interface AdminUser {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  role: 'USER' | 'ADMIN';
+  status: 'ACTIVE' | 'SUSPENDED';
+  createdAt: string;
+  lastSeenAt: string | null;
+  memories: number;
+  books: number;
+  channels: number;
+}
+
+export interface AdminSummary {
+  users: number;
+  activeLast7Days: number;
+  admins: number;
+  suspended: number;
+  memories: number;
+  books: number;
+  channels: number;
 }
 
 export interface YouTubeDay {

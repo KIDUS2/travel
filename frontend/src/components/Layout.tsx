@@ -1,8 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { useMe } from '../auth/MeProvider';
 import { config } from '../config';
 import { useBi, useLang } from '../lib/i18n';
 import { Icon } from './Icon';
+import { TeguwazLogo } from './TeguwazLogo';
 
 const NAV = [
   { to: '/', icon: 'home', en: 'Home', am: 'መነሻ' },
@@ -15,7 +17,10 @@ const NAV = [
 ];
 
 export function Layout() {
-  const { name, logout } = useAuth();
+  const { name: authName, logout } = useAuth();
+  const { me, isAdmin } = useMe();
+  const name = me?.displayName || authName;
+  const nav = isAdmin ? [...NAV, { to: '/admin/users', icon: 'users', en: 'Users', am: 'ተጠቃሚዎች' }] : NAV;
   const { lang, setLang } = useLang();
   const bi = useBi();
 
@@ -25,14 +30,10 @@ export function Layout() {
         <div className="flagline" />
         <div className="sidebar-inner">
           <NavLink to="/" className="brand" aria-label="Teguwaz home">
-            <span className="brand-mark">ተ</span>
-            <span style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="brand-name">Teguwaz</span>
-              <span className="brand-am">ተጓዥ</span>
-            </span>
+            <TeguwazLogo size={44} />
           </NavLink>
           <div className="tibeb" style={{ margin: '0 8px 18px', borderRadius: 3 }} />
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const label = bi(item.en, item.am);
             return (
               <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
@@ -51,9 +52,9 @@ export function Layout() {
               <button type="button" className="am" aria-pressed={lang === 'am'} onClick={() => setLang('am')}>አማርኛ</button>
             </div>
             <div className="user-chip">
-              <span className="avatar">{name.charAt(0).toUpperCase()}</span>
-              <span style={{ display: 'flex', flexDirection: 'column', fontSize: 14, minWidth: 0 }}>
-                <span style={{ color: '#fff', fontWeight: 600 }}>{name}</span>
+              <NavLink to="/account" className="avatar" aria-label="My account" style={{ textDecoration: 'none' }}>{name.charAt(0).toUpperCase()}</NavLink>
+              <span style={{ display: 'flex', flexDirection: 'column', fontSize: 14, minWidth: 0, flex: 1 }}>
+                <NavLink to="/account" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none' }}>{name}</NavLink>
                 {config.demoMode ? (
                   <span style={{ color: 'var(--on-dark-faint)', fontSize: 13 }}>Demo mode</span>
                 ) : (

@@ -22,7 +22,8 @@ Built one feature at a time.
 | 1 | Account, trips, memories, photo/video/voice upload, privacy | ✅ | ✅ connected |
 | 2 | Coverage map: explore any country (drag, zoom, search), tap a place for its memories; region %, badges | computed from memories for now | ✅ |
 | 3 | Book studio: create from a trip with auto-fill, page editor (drag photos, edit text, layouts, backgrounds, add/reorder pages), preview, print / PDF | ✅ | ✅ connected (ordering later) |
-| 4 | Creator studio: connect YouTube (OAuth, encrypted tokens, channel stats + 28-day analytics); Instagram and TikTok next | ✅ YouTube | ✅ connected |
+| 4 | Creator studio: add any number of channels on any platform (name + link); connect YouTube channels for stats, one OAuth per channel | ✅ | ✅ connected |
+| — | User management: account page; admin Users page (search, roles, suspend/reactivate, activity) | ✅ | ✅ connected |
 | — | Travel dashboard: memories by month, regions, places, media, privacy, trips, books | from existing APIs | ✅ |
 | 5 | Policy alerts | ⏳ | ✅ UI, sample data |
 
@@ -53,7 +54,9 @@ npm install
 npm run dev
 ```
 
-Sign in with the local test user **meron** / **teguwaz-dev** (development only), or register a new account.
+Sign in with the local test users (development only): **meron** / **teguwaz-dev** is an admin, **abebe** / **teguwaz-dev** is a regular traveler. Or register a new account.
+
+Admins are users with the Keycloak realm role `admin`, users whose email is in `ADMIN_EMAILS` when they first sign in, or users made admin on the Users page.
 
 ### Backend configuration
 
@@ -72,7 +75,8 @@ All settings have local defaults in `backend/src/main/resources/application.yml`
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` |
 | `UPLOAD_MAX_SIZE` | `200MB` |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | Google OAuth client (Web application) with YouTube Data API v3 and YouTube Analytics API enabled |
-| `YOUTUBE_REDIRECT_URI` | `http://localhost:8080/api/connections/youtube/callback` (add it to the OAuth client) |
+| `YOUTUBE_REDIRECT_URI` | `http://localhost:8080/api/channels/oauth/youtube/callback` (add it to the OAuth client) |
+| `ADMIN_EMAILS` | Comma-separated emails that become admins on first sign-in |
 | `TOKEN_ENCRYPTION_KEY` | Encrypts stored OAuth tokens. `openssl rand -base64 32` |
 | `OAUTH_STATE_KEY` | Signs the OAuth state (any long random string) |
 | `FRONTEND_URL` | `http://localhost:5173` — where the browser returns after connecting |
@@ -112,15 +116,27 @@ Media is stored in a private MinIO bucket; responses carry short-lived signed UR
 
 A book's `pages` is a JSON array. Each page has a `layout` (`cover`, `title`, `full-photo`, `photo-text`, `two-photos`, `grid-3`, `story`, `map`), a `background` (`white`, `cream`, `green`, `tibeb`) and `slots`: text, or a photo id for photo boxes (a memory's media id or a book photo id). At most 200 pages per book.
 
-## API (Feature 4: connected accounts)
+## API (Feature 4: channels)
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/connections` | Each platform: available on this server, connected, account name, last sync |
-| POST | `/api/connections/{platform}/start` | Returns the platform's sign-in URL (`youtube` today) |
-| GET | `/api/connections/{platform}/callback` | Public; the platform redirects here, then back to the app |
-| GET | `/api/connections/youtube/stats` | Subscribers, views, videos, and the last 28 days of views, likes, comments, shares |
-| DELETE | `/api/connections/{platform}` | Disconnect and revoke access |
+| GET | `/api/channels/platforms` | Platforms to choose from, and which support stats on this server |
+| GET / POST | `/api/channels` | The user's channels / add one (`platform`, `name`, `url`). Any number, several per platform |
+| PUT / DELETE | `/api/channels/{id}` | Edit / remove (removing also revokes stats access) |
+| POST / DELETE | `/api/channels/{id}/connect` | Start OAuth for this channel's stats (YouTube) / stop reading stats |
+| GET | `/api/channels/{id}/stats` | Subscribers, views, videos, last 28 days of views, likes, comments, shares |
+| GET | `/api/channels/oauth/{platform}/callback` | Public; the platform redirects here, then back to the app |
+
+## API (user management)
+
+| Method | Path | |
+|---|---|---|
+| GET / PUT | `/api/me` | Includes `role` (`USER` / `ADMIN`) and `status` |
+| GET | `/api/admin/summary` | Admins only: users, active in 7 days, admins, suspended, totals |
+| GET | `/api/admin/users?query=&page=&size=` | Admins only: search users with their activity |
+| PATCH | `/api/admin/users/{id}` | Admins only: `role` and/or `status`. Admins cannot demote or suspend themselves |
+
+Suspended users get `403` on every API call (their data is kept).
 
 ## Tests
 

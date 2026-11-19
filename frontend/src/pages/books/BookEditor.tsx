@@ -4,6 +4,7 @@ import { api } from '../../api/api';
 import type { Book, BookPage, BookPhoto, BookSettings, Memory, PageBackground, PageLayout } from '../../api/types';
 import { pinsFromMemories } from '../../components/EthiopiaMap';
 import { Icon } from '../../components/Icon';
+import { TeguwazMark } from '../../components/TeguwazLogo';
 import { computeCoverage } from '../../lib/coverage';
 import {
   BACKGROUNDS, LAYOUTS, PAGE_MM, PAGE_RATIO, SIZE_LABEL, blankPage, changeLayout, layoutDef, mapPageText, newId,
@@ -218,6 +219,7 @@ export function BookEditor() {
     <div className="editor">
       <header className="editor-top">
         <div className="flagline" style={{ position: 'absolute', top: 0, left: 0, right: 0 }} />
+        <Link to="/" aria-label="Teguwaz home" style={{ display: 'flex' }}><TeguwazMark size={36} /></Link>
         <Link to="/books" className="btn" style={{ minHeight: 40 }}><span aria-hidden="true">←</span> My books</Link>
         <label style={{ flex: '1 1 220px', minWidth: 0 }}>
           <span className="sr-only">Book title</span>

@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { Book, BookInput, BookPhoto, BookSummary, ConnectionStatus, Platform, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -23,10 +23,18 @@ export interface TeguwazApi {
   listBookPhotos(bookId: string): Promise<BookPhoto[]>;
   uploadBookPhoto(bookId: string, file: File): Promise<BookPhoto>;
   deleteBookPhoto(bookId: string, photoId: string): Promise<void>;
-  listConnections(): Promise<ConnectionStatus[]>;
-  startConnection(platform: Platform): Promise<{ authorizeUrl: string }>;
-  disconnect(platform: Platform): Promise<void>;
-  youtubeStats(): Promise<YouTubeStats>;
+  updateMe(input: { displayName: string; preferredLanguage: 'en' | 'am' }): Promise<Me>;
+  platforms(): Promise<PlatformInfo[]>;
+  listChannels(): Promise<Channel[]>;
+  createChannel(input: ChannelInput): Promise<Channel>;
+  updateChannel(id: string, input: ChannelInput): Promise<Channel>;
+  deleteChannel(id: string): Promise<void>;
+  connectChannel(id: string): Promise<{ authorizeUrl: string }>;
+  disconnectChannel(id: string): Promise<Channel>;
+  channelStats(id: string): Promise<YouTubeStats>;
+  adminSummary(): Promise<AdminSummary>;
+  adminUsers(params: { query?: string; page?: number; size?: number }): Promise<Page<AdminUser>>;
+  adminUpdateUser(id: string, patch: { role?: AdminUser['role']; status?: AdminUser['status'] }): Promise<AdminUser>;
 }
 
 const httpApi: TeguwazApi = {
@@ -62,10 +70,22 @@ const httpApi: TeguwazApi = {
     return request(`/api/books/${bookId}/photos`, { method: 'POST', body: form });
   },
   deleteBookPhoto: (bookId, photoId) => request(`/api/books/${bookId}/photos/${photoId}`, { method: 'DELETE' }),
-  listConnections: () => request('/api/connections'),
-  startConnection: (platform) => request(`/api/connections/${platform}/start`, { method: 'POST' }),
-  disconnect: (platform) => request(`/api/connections/${platform}`, { method: 'DELETE' }),
-  youtubeStats: () => request('/api/connections/youtube/stats'),
+  updateMe: (input) => request('/api/me', { method: 'PUT', body: JSON.stringify(input) }),
+  platforms: () => request('/api/channels/platforms'),
+  listChannels: () => request('/api/channels'),
+  createChannel: (input) => request('/api/channels', { method: 'POST', body: JSON.stringify(input) }),
+  updateChannel: (id, input) => request(`/api/channels/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+  deleteChannel: (id) => request(`/api/channels/${id}`, { method: 'DELETE' }),
+  connectChannel: (id) => request(`/api/channels/${id}/connect`, { method: 'POST' }),
+  disconnectChannel: (id) => request(`/api/channels/${id}/connect`, { method: 'DELETE' }),
+  channelStats: (id) => request(`/api/channels/${id}/stats`),
+  adminSummary: () => request('/api/admin/summary'),
+  adminUsers: ({ query, page = 0, size = 25 }) => {
+    const q = new URLSearchParams({ page: String(page), size: String(size) });
+    if (query) q.set('query', query);
+    return request(`/api/admin/users?${q}`);
+  },
+  adminUpdateUser: (id, patch) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 };
 
 export const api: TeguwazApi = config.demoMode ? demoApi : httpApi;

@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { Book, BookPhoto, ConnectionStatus, Media, Platform, YouTubeStats, Memory, MemoryInput, Trip } from './types';
+import type { AdminUser, Book, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -76,12 +76,33 @@ function recount() {
 recount();
 
 let books: Book[] = [];
-const demoConnected = new Set<Platform>();
-const SETUP: Record<Platform, string> = {
-  youtube: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.',
-  instagram: "Coming next. Needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review.",
-  tiktok: 'Coming next. Needs a TikTok for Developers app approved for the Display API.',
-};
+const PLATFORMS: PlatformInfo[] = [
+  { id: 'youtube', name: 'YouTube', statsSupported: true, statsAvailable: true, setup: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.' },
+  { id: 'tiktok', name: 'TikTok', statsSupported: false, statsAvailable: false, setup: 'Stats coming next: needs a TikTok for Developers app approved for the Display API.' },
+  { id: 'instagram', name: 'Instagram', statsSupported: false, statsAvailable: false, setup: "Stats coming next: needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review." },
+  { id: 'facebook', name: 'Facebook', statsSupported: false, statsAvailable: false, setup: "Stats coming next: needs a Meta app with Pages access and Meta's app review." },
+  { id: 'x', name: 'X (Twitter)', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'telegram', name: 'Telegram', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'website', name: 'Website or blog', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'other', name: 'Other', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+];
+const platformInfo = (p: Platform) => PLATFORMS.find((x) => x.id === p)!;
+let channels: Channel[] = [];
+let me: Me = { id: 'demo', email: 'meron@example.com', displayName: 'Meron T.', preferredLanguage: 'en', role: 'ADMIN', status: 'ACTIVE', createdAt: now() };
+const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
+let adminUsers: AdminUser[] = [
+  { id: 'demo', email: 'meron@example.com', displayName: 'Meron T.', role: 'ADMIN', status: 'ACTIVE', createdAt: ago(40), lastSeenAt: ago(0), memories: 6, books: 0, channels: 0 },
+  { id: uid(), email: 'abebe@example.com', displayName: 'Abebe K.', role: 'USER', status: 'ACTIVE', createdAt: ago(21), lastSeenAt: ago(1), memories: 23, books: 2, channels: 3 },
+  { id: uid(), email: 'selam@example.com', displayName: 'Selam G.', role: 'USER', status: 'ACTIVE', createdAt: ago(15), lastSeenAt: ago(3), memories: 41, books: 1, channels: 2 },
+  { id: uid(), email: 'dawit@example.com', displayName: 'Dawit M.', role: 'USER', status: 'SUSPENDED', createdAt: ago(9), lastSeenAt: ago(8), memories: 2, books: 0, channels: 1 },
+  { id: uid(), email: 'hana@example.com', displayName: 'Hana T.', role: 'USER', status: 'ACTIVE', createdAt: ago(2), lastSeenAt: null, memories: 0, books: 0, channels: 0 },
+];
+function toChannel(id: string, platform: Platform, name: string, url: string): Channel {
+  const info = platformInfo(platform);
+  return { id, platform, name, url: url.match(/^https?:\/\//i) ? url.replace(/^http:/i, 'https:') : `https://${url}`,
+    statsSupported: info.statsSupported, statsAvailable: info.statsAvailable, connected: false, accountName: null,
+    connectedAt: null, lastSyncedAt: null, createdAt: now() };
+}
 
 /** A believable 28-day series so the dashboard can be tried in demo mode. */
 function demoYouTube(): YouTubeStats {
@@ -112,7 +133,7 @@ function find(id: string): Memory {
 }
 
 export const demoApi: TeguwazApi = {
-  me: () => delay({ id: 'demo', email: 'meron@example.com', displayName: 'Meron T.', preferredLanguage: 'en', createdAt: now() }),
+  me: () => delay(me),
   listTrips: () => delay(trips),
   createTrip: async (input) => {
     const t: Trip = { id: uid(), name: input.name, description: input.description ?? null, startDate: input.startDate ?? null,
@@ -209,23 +230,54 @@ export const demoApi: TeguwazApi = {
     bookPhotos.set(bookId, [...(bookPhotos.get(bookId) ?? []), photo]);
     return new Promise((r) => setTimeout(() => r(photo), 300));
   },
-  listConnections: async () => delay((['youtube', 'instagram', 'tiktok'] as Platform[]).map((p): ConnectionStatus => ({
-    platform: p, available: p === 'youtube', connected: demoConnected.has(p),
-    accountName: demoConnected.has(p) ? 'Meron Travels (demo)' : null,
-    connectedAt: demoConnected.has(p) ? now() : null, lastSyncedAt: demoConnected.has(p) ? now() : null, setup: SETUP[p],
-  }))),
-  startConnection: async (platform) => {
-    // Demo: pretend the user approved on the platform's page.
-    demoConnected.add(platform);
-    return delay({ authorizeUrl: `/creator?connected=${platform}` });
+  updateMe: async (input) => {
+    me = { ...me, ...input };
+    return delay(me);
   },
-  disconnect: async (platform) => {
-    demoConnected.delete(platform);
+  platforms: async () => delay(PLATFORMS),
+  listChannels: async () => delay(channels),
+  createChannel: async (input) => {
+    const c = toChannel(uid(), input.platform, input.name.trim(), input.url.trim());
+    channels = [...channels, c];
+    return delay(c);
+  },
+  updateChannel: async (id, input) => {
+    channels = channels.map((c) => (c.id === id ? { ...toChannel(id, input.platform, input.name.trim(), input.url.trim()), connected: c.connected, accountName: c.accountName, connectedAt: c.connectedAt, lastSyncedAt: c.lastSyncedAt, createdAt: c.createdAt } : c));
+    return delay(channels.find((c) => c.id === id)!);
+  },
+  deleteChannel: async (id) => {
+    channels = channels.filter((c) => c.id !== id);
     return delay(undefined);
   },
-  youtubeStats: async () => {
-    if (!demoConnected.has('youtube')) throw new Error('YouTube is not connected');
-    return delay(demoYouTube());
+  connectChannel: async (id) => {
+    // Demo: pretend the user approved on YouTube's page.
+    channels = channels.map((c) => (c.id === id ? { ...c, connected: true, accountName: `${c.name} (demo)`, connectedAt: now(), lastSyncedAt: now() } : c));
+    return delay({ authorizeUrl: `/creator?connected=${id}` });
+  },
+  disconnectChannel: async (id) => {
+    channels = channels.map((c) => (c.id === id ? { ...c, connected: false, accountName: null, connectedAt: null, lastSyncedAt: null } : c));
+    return delay(channels.find((c) => c.id === id)!);
+  },
+  channelStats: async (id) => {
+    const c = channels.find((x) => x.id === id);
+    if (!c?.connected) throw new Error('Connect this channel first');
+    return delay({ ...demoYouTube(), channelTitle: c.name });
+  },
+  adminSummary: async () => delay({
+    users: adminUsers.length, activeLast7Days: adminUsers.filter((u) => u.lastSeenAt && Date.now() - Date.parse(u.lastSeenAt) < 7 * 86400000).length,
+    admins: adminUsers.filter((u) => u.role === 'ADMIN').length, suspended: adminUsers.filter((u) => u.status === 'SUSPENDED').length,
+    memories: adminUsers.reduce((n, u) => n + u.memories, 0), books: adminUsers.reduce((n, u) => n + u.books, 0),
+    channels: adminUsers.reduce((n, u) => n + u.channels, 0),
+  }),
+  adminUsers: async ({ query, page = 0, size = 25 }) => {
+    const q = query?.trim().toLowerCase();
+    const all = q ? adminUsers.filter((u) => `${u.email} ${u.displayName}`.toLowerCase().includes(q)) : adminUsers;
+    return delay({ items: all.slice(page * size, page * size + size), page, size, total: all.length });
+  },
+  adminUpdateUser: async (id, patch) => {
+    if (id === me.id && (patch.role === 'USER' || patch.status === 'SUSPENDED')) throw new Error('You cannot remove your own admin role or suspend yourself');
+    adminUsers = adminUsers.map((u) => (u.id === id ? { ...u, ...patch } : u));
+    return delay(adminUsers.find((u) => u.id === id)!);
   },
   deleteBookPhoto: async (bookId, photoId) => {
     bookPhotos.set(bookId, (bookPhotos.get(bookId) ?? []).filter((p) => p.id !== photoId));
