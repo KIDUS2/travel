@@ -6,10 +6,11 @@ import { Icon } from './Icon';
 
 const NAV = [
   { to: '/', icon: 'home', en: 'Home', am: 'መነሻ' },
+  { to: '/dashboard', icon: 'chart', en: 'Dashboard', am: 'ዳሽቦርድ' },
   { to: '/memories', icon: 'photo', en: 'Memories', am: 'ትዝታዎች' },
   { to: '/books', icon: 'book', en: 'Books', am: 'መጽሐፍት' },
   { to: '/coverage', icon: 'map', en: 'Coverage map', am: 'የጉዞ ካርታ' },
-  { to: '/creator', icon: 'chart', en: 'Creator studio', am: 'የይዘት ስቱዲዮ' },
+  { to: '/creator', icon: 'eye', en: 'Creator studio', am: 'የይዘት ስቱዲዮ' },
   { to: '/alerts', icon: 'bell', en: 'Policy alerts', am: 'ማሳሰቢያዎች', badge: 2 },
 ];
 

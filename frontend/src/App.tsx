@@ -7,6 +7,7 @@ import { BookEditor } from './pages/books/BookEditor';
 import { Books } from './pages/books/Books';
 import { Coverage } from './pages/Coverage';
 import { Creator } from './pages/Creator';
+import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
 import { Memories } from './pages/memories/Memories';
 
@@ -19,6 +20,7 @@ export function App() {
             <Route path="books/:id" element={<BookEditor />} />
             <Route element={<Layout />}>
               <Route index element={<Home />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="memories" element={<Memories />} />
               <Route path="books" element={<Books />} />
               <Route path="coverage" element={<Coverage />} />

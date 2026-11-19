@@ -143,3 +143,43 @@ export interface BookPhoto {
   sizeBytes: number;
   url: string;
 }
+
+// ---- Connected accounts (Feature 4) ----
+
+export type Platform = 'youtube' | 'instagram' | 'tiktok';
+
+export interface ConnectionStatus {
+  platform: Platform;
+  available: boolean;
+  connected: boolean;
+  accountName: string | null;
+  connectedAt: string | null;
+  lastSyncedAt: string | null;
+  setup: string;
+}
+
+export interface YouTubeDay {
+  date: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  subscribersGained: number;
+}
+
+export interface YouTubeStats {
+  channelTitle: string;
+  subscribers: number;
+  totalViews: number;
+  videoCount: number;
+  periodDays: number;
+  periodViews: number;
+  periodLikes: number;
+  periodComments: number;
+  periodShares: number;
+  subscribersGained: number;
+  engagementRate: number;
+  analyticsAvailable: boolean;
+  note: string | null;
+  days: YouTubeDay[];
+}

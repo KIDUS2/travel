@@ -20,9 +20,10 @@ Built one feature at a time.
 | # | Feature | Backend | Frontend |
 |---|---|---|---|
 | 1 | Account, trips, memories, photo/video/voice upload, privacy | ✅ | ✅ connected |
-| 2 | Coverage map: world map with Ethiopia zoom, region %, badges | computed from memories for now | ✅ |
+| 2 | Coverage map: explore any country (drag, zoom, search), tap a place for its memories; region %, badges | computed from memories for now | ✅ |
 | 3 | Book studio: create from a trip with auto-fill, page editor (drag photos, edit text, layouts, backgrounds, add/reorder pages), preview, print / PDF | ✅ | ✅ connected (ordering later) |
-| 4 | Creator studio (YouTube → Instagram → TikTok) | ⏳ | ✅ UI, sample data |
+| 4 | Creator studio: connect YouTube (OAuth, encrypted tokens, channel stats + 28-day analytics); Instagram and TikTok next | ✅ YouTube | ✅ connected |
+| — | Travel dashboard: memories by month, regions, places, media, privacy, trips, books | from existing APIs | ✅ |
 | 5 | Policy alerts | ⏳ | ✅ UI, sample data |
 
 ## Try the UI without a backend
@@ -39,7 +40,7 @@ Open http://localhost:5173.
 
 ```bash
 # 1. Infrastructure
-docker compose up -d   # Postgres :5432, Keycloak :8180, MinIO :9000 (console :9001)
+docker compose up -d postgres keycloak   # add "minio" only if you use STORAGE_TYPE=s3
 
 # 2. Backend (Java 21)
 cd backend
@@ -63,10 +64,24 @@ All settings have local defaults in `backend/src/main/resources/application.yml`
 | `DB_R2DBC_URL` / `DB_JDBC_URL` | `r2dbc:postgresql://localhost:5432/teguwaz` / `jdbc:postgresql://localhost:5432/teguwaz` |
 | `DB_USER` / `DB_PASSWORD` | `teguwaz` / `teguwaz` |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/teguwaz` |
-| `MINIO_ENDPOINT` / `MINIO_PUBLIC_ENDPOINT` | `http://localhost:9000` |
+| `STORAGE_TYPE` | `local` (files in a folder) or `s3` (MinIO / SeaweedFS / S3) |
+| `UPLOAD_DIR` | `./data/uploads` — where `local` storage keeps files |
+| `FILE_LINK_SIGNING_KEY` | Signs file links for `local` storage. Set it in production so links survive restarts |
+| `MINIO_ENDPOINT` / `MINIO_PUBLIC_ENDPOINT` | `http://localhost:9000` (only for `s3`) |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | `teguwaz` / `teguwaz-secret` / `teguwaz-media` |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` |
 | `UPLOAD_MAX_SIZE` | `200MB` |
+| `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | Google OAuth client (Web application) with YouTube Data API v3 and YouTube Analytics API enabled |
+| `YOUTUBE_REDIRECT_URI` | `http://localhost:8080/api/connections/youtube/callback` (add it to the OAuth client) |
+| `TOKEN_ENCRYPTION_KEY` | Encrypts stored OAuth tokens. `openssl rand -base64 32` |
+| `OAUTH_STATE_KEY` | Signs the OAuth state (any long random string) |
+| `FRONTEND_URL` | `http://localhost:5173` — where the browser returns after connecting |
+
+### Where files are saved
+
+By default (`STORAGE_TYPE=local`) uploads go to `UPLOAD_DIR` on the server, e.g. `data/uploads/users/{id}/memories/...`.
+The folder is never served directly: the app gets signed links to `/api/files/...` that expire after an hour.
+Switch to MinIO/SeaweedFS with `STORAGE_TYPE=s3`; file keys are the same, so you can move the folder's contents into the bucket.
 
 ## API (Feature 1)
 
@@ -96,6 +111,16 @@ Media is stored in a private MinIO bucket; responses carry short-lived signed UR
 | DELETE | `/api/books/{id}/photos/{photoId}` | |
 
 A book's `pages` is a JSON array. Each page has a `layout` (`cover`, `title`, `full-photo`, `photo-text`, `two-photos`, `grid-3`, `story`, `map`), a `background` (`white`, `cream`, `green`, `tibeb`) and `slots`: text, or a photo id for photo boxes (a memory's media id or a book photo id). At most 200 pages per book.
+
+## API (Feature 4: connected accounts)
+
+| Method | Path | |
+|---|---|---|
+| GET | `/api/connections` | Each platform: available on this server, connected, account name, last sync |
+| POST | `/api/connections/{platform}/start` | Returns the platform's sign-in URL (`youtube` today) |
+| GET | `/api/connections/{platform}/callback` | Public; the platform redirects here, then back to the app |
+| GET | `/api/connections/youtube/stats` | Subscribers, views, videos, and the last 28 days of views, likes, comments, shares |
+| DELETE | `/api/connections/{platform}` | Disconnect and revoke access |
 
 ## Tests
 

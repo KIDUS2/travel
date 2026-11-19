@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { Book, BookPhoto, Media, Memory, MemoryInput, Trip } from './types';
+import type { Book, BookPhoto, ConnectionStatus, Media, Platform, YouTubeStats, Memory, MemoryInput, Trip } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -76,6 +76,31 @@ function recount() {
 recount();
 
 let books: Book[] = [];
+const demoConnected = new Set<Platform>();
+const SETUP: Record<Platform, string> = {
+  youtube: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.',
+  instagram: "Coming next. Needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review.",
+  tiktok: 'Coming next. Needs a TikTok for Developers app approved for the Display API.',
+};
+
+/** A believable 28-day series so the dashboard can be tried in demo mode. */
+function demoYouTube(): YouTubeStats {
+  const days = Array.from({ length: 28 }, (_, i) => {
+    const d = new Date(Date.now() - (28 - i) * 86400000);
+    const base = 900 + Math.round(600 * Math.sin(i / 3) ** 2) + (i > 18 ? 1400 : 0) + ((i * 37) % 250);
+    return { date: d.toISOString().slice(0, 10), views: base, likes: Math.round(base * 0.045), comments: Math.round(base * 0.008),
+      shares: Math.round(base * 0.006), subscribersGained: Math.round(base / 160) };
+  });
+  const sum = (k: keyof (typeof days)[number]) => days.reduce((n, d) => n + (d[k] as number), 0);
+  const views = sum('views');
+  return {
+    channelTitle: 'Meron Travels (demo)', subscribers: 4820, totalViews: 312400, videoCount: 46, periodDays: 28,
+    periodViews: views, periodLikes: sum('likes'), periodComments: sum('comments'), periodShares: sum('shares'),
+    subscribersGained: sum('subscribersGained'),
+    engagementRate: Math.round(((sum('likes') + sum('comments') + sum('shares')) / views) * 1000) / 10,
+    analyticsAvailable: true, note: null, days,
+  };
+}
 const bookPhotos = new Map<string, BookPhoto[]>();
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), 120));
@@ -183,6 +208,24 @@ export const demoApi: TeguwazApi = {
     const photo: BookPhoto = { id: uid(), contentType: file.type, sizeBytes: file.size, url: URL.createObjectURL(file) };
     bookPhotos.set(bookId, [...(bookPhotos.get(bookId) ?? []), photo]);
     return new Promise((r) => setTimeout(() => r(photo), 300));
+  },
+  listConnections: async () => delay((['youtube', 'instagram', 'tiktok'] as Platform[]).map((p): ConnectionStatus => ({
+    platform: p, available: p === 'youtube', connected: demoConnected.has(p),
+    accountName: demoConnected.has(p) ? 'Meron Travels (demo)' : null,
+    connectedAt: demoConnected.has(p) ? now() : null, lastSyncedAt: demoConnected.has(p) ? now() : null, setup: SETUP[p],
+  }))),
+  startConnection: async (platform) => {
+    // Demo: pretend the user approved on the platform's page.
+    demoConnected.add(platform);
+    return delay({ authorizeUrl: `/creator?connected=${platform}` });
+  },
+  disconnect: async (platform) => {
+    demoConnected.delete(platform);
+    return delay(undefined);
+  },
+  youtubeStats: async () => {
+    if (!demoConnected.has('youtube')) throw new Error('YouTube is not connected');
+    return delay(demoYouTube());
   },
   deleteBookPhoto: async (bookId, photoId) => {
     bookPhotos.set(bookId, (bookPhotos.get(bookId) ?? []).filter((p) => p.id !== photoId));

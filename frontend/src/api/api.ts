@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { Book, BookInput, BookPhoto, BookSummary, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { Book, BookInput, BookPhoto, BookSummary, ConnectionStatus, Platform, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -23,6 +23,10 @@ export interface TeguwazApi {
   listBookPhotos(bookId: string): Promise<BookPhoto[]>;
   uploadBookPhoto(bookId: string, file: File): Promise<BookPhoto>;
   deleteBookPhoto(bookId: string, photoId: string): Promise<void>;
+  listConnections(): Promise<ConnectionStatus[]>;
+  startConnection(platform: Platform): Promise<{ authorizeUrl: string }>;
+  disconnect(platform: Platform): Promise<void>;
+  youtubeStats(): Promise<YouTubeStats>;
 }
 
 const httpApi: TeguwazApi = {
@@ -58,6 +62,10 @@ const httpApi: TeguwazApi = {
     return request(`/api/books/${bookId}/photos`, { method: 'POST', body: form });
   },
   deleteBookPhoto: (bookId, photoId) => request(`/api/books/${bookId}/photos/${photoId}`, { method: 'DELETE' }),
+  listConnections: () => request('/api/connections'),
+  startConnection: (platform) => request(`/api/connections/${platform}/start`, { method: 'POST' }),
+  disconnect: (platform) => request(`/api/connections/${platform}`, { method: 'DELETE' }),
+  youtubeStats: () => request('/api/connections/youtube/stats'),
 };
 
 export const api: TeguwazApi = config.demoMode ? demoApi : httpApi;

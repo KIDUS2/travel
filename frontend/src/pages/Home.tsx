@@ -46,6 +46,7 @@ export function Home() {
           <div className="pills" style={{ marginTop: 6 }}>
             <Link to="/memories?new=1" className="btn btn-yellow"><Icon name="plus" size={18} stroke={2.6} />New memory</Link>
             <Link to="/coverage" className="btn btn-ghost-dark">Open my map</Link>
+            <Link to="/dashboard" className="btn btn-ghost-dark">My dashboard</Link>
           </div>
         </div>
         <div style={{ flex: '1 1 260px', padding: '30px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12, background: 'var(--green-850)' }}>
