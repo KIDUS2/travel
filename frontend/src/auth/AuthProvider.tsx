@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { config } from '../config';
-import { getKeycloak } from './keycloak';
+import { getKeycloak, initKeycloak } from './keycloak';
 
 interface AuthState {
   ready: boolean;
@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (config.demoMode) return;
     const kc = getKeycloak();
-    kc.init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false })
+    initKeycloak()
       .then(() => {
         const parsed = kc.tokenParsed as { name?: string; preferred_username?: string } | undefined;
         setState({
@@ -26,7 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           logout: () => kc.logout({ redirectUri: window.location.origin }),
         });
       })
-      .catch(() => setError('Could not reach the sign-in server. Check that Keycloak is running.'));
+      .catch((e: unknown) => {
+        console.error('Keycloak init failed', e);
+        const detail = e instanceof Error ? e.message : (e as { error?: string } | undefined)?.error;
+        setError(`Could not sign you in${detail ? ` (${detail})` : ''}. Check that Keycloak is running at ${config.keycloak.url} with the "${config.keycloak.realm}" realm.`);
+      });
   }, []);
 
   if (error) {

@@ -14,6 +14,19 @@ export function getKeycloak(): Keycloak {
   return instance;
 }
 
+let initPromise: Promise<boolean> | null = null;
+
+/**
+ * Starts Keycloak once. React StrictMode runs effects twice in development,
+ * and keycloak-js refuses a second init(), so every caller shares one promise.
+ */
+export function initKeycloak(): Promise<boolean> {
+  if (!initPromise) {
+    initPromise = getKeycloak().init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false });
+  }
+  return initPromise;
+}
+
 /** Returns a fresh access token, refreshing it if it expires within 30 s. */
 export async function getAccessToken(): Promise<string | null> {
   if (config.demoMode) return null;
