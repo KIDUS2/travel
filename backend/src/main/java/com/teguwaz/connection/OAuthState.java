@@ -19,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class OAuthState {
 
-    public record Payload(UUID userId, String platform) {
+    public record Payload(UUID userId, String platform, UUID channelId) {
     }
 
     private static final long TTL_SECONDS = 600;
@@ -38,11 +38,11 @@ public class OAuthState {
         }
     }
 
-    public String create(UUID userId, String platform) {
+    public String create(UUID userId, String platform, UUID channelId) {
         byte[] nonce = new byte[12];
         random.nextBytes(nonce);
         long exp = clock.instant().getEpochSecond() + TTL_SECONDS;
-        String body = userId + "." + platform + "." + exp + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+        String body = userId + "." + platform + "." + channelId + "." + exp + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
         return body + "." + sign(body);
     }
 
@@ -60,14 +60,14 @@ public class OAuthState {
             return Optional.empty();
         }
         String[] parts = body.split("\\.");
-        if (parts.length != 4 || !parts[1].equals(expectedPlatform)) {
+        if (parts.length != 5 || !parts[1].equals(expectedPlatform)) {
             return Optional.empty();
         }
         try {
-            if (Long.parseLong(parts[2]) < clock.instant().getEpochSecond()) {
+            if (Long.parseLong(parts[3]) < clock.instant().getEpochSecond()) {
                 return Optional.empty();
             }
-            return Optional.of(new Payload(UUID.fromString(parts[0]), parts[1]));
+            return Optional.of(new Payload(UUID.fromString(parts[0]), parts[1], UUID.fromString(parts[2])));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }

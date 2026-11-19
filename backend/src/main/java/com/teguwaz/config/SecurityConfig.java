@@ -30,7 +30,7 @@ public class SecurityConfig {
                         // Signed, expiring links to stored files: the link is the permission.
                         .pathMatchers(HttpMethod.GET, "/api/files/**").permitAll()
                         // OAuth providers redirect the browser here; the signed state identifies the user.
-                        .pathMatchers(HttpMethod.GET, "/api/connections/*/callback").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/channels/oauth/*/callback").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().denyAll())
                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))

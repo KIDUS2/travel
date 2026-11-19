@@ -23,6 +23,11 @@ public class GlobalErrorHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), Map.of());
+    }
+
     @ExceptionHandler(BadRequestException.class)
     ResponseEntity<ApiError> badRequest(BadRequestException ex) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());

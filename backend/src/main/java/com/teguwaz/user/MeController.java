@@ -35,9 +35,10 @@ public class MeController {
     @PutMapping
     public Mono<MeResponse> update(@Valid @RequestBody UpdateMeRequest req) {
         return currentUser.currentUser()
-                .map(u -> u.withProfile(req.displayName().trim(), req.preferredLanguage()))
-                .flatMap(users::save)
-                .map(MeResponse::from);
+                .flatMap(effective -> users.findById(effective.id())
+                        .map(stored -> stored.withProfile(req.displayName().trim(), req.preferredLanguage()))
+                        .flatMap(users::save)
+                        .map(saved -> MeResponse.from(saved.withRole(effective.role()))));
     }
 
     public record UpdateMeRequest(
@@ -45,9 +46,10 @@ public class MeController {
             @NotBlank @Pattern(regexp = "en|am", message = "must be 'en' or 'am'") String preferredLanguage) {
     }
 
-    public record MeResponse(UUID id, String email, String displayName, String preferredLanguage, Instant createdAt) {
+    public record MeResponse(UUID id, String email, String displayName, String preferredLanguage, String role,
+                             String status, Instant createdAt) {
         static MeResponse from(AppUser u) {
-            return new MeResponse(u.id(), u.email(), u.displayName(), u.preferredLanguage(), u.createdAt());
+            return new MeResponse(u.id(), u.email(), u.displayName(), u.preferredLanguage(), u.role(), u.status(), u.createdAt());
         }
     }
 }

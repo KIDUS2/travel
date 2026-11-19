@@ -44,8 +44,12 @@ class ConnectionSecurityTest {
     void stateIdentifiesTheUserAndPlatform() {
         OAuthState s = new OAuthState("k", Clock.systemUTC());
         UUID user = UUID.randomUUID();
-        String value = s.create(user, "youtube");
-        assertThat(s.verify(value, "youtube")).hasValueSatisfying(p -> assertThat(p.userId()).isEqualTo(user));
+        UUID channel = UUID.randomUUID();
+        String value = s.create(user, "youtube", channel);
+        assertThat(s.verify(value, "youtube")).hasValueSatisfying(p -> {
+            assertThat(p.userId()).isEqualTo(user);
+            assertThat(p.channelId()).isEqualTo(channel);
+        });
         assertThat(s.verify(value, "tiktok")).isEmpty();
     }
 
@@ -53,13 +57,13 @@ class ConnectionSecurityTest {
     void forgedOrExpiredStateIsRejected() {
         UUID user = UUID.randomUUID();
         OAuthState s = new OAuthState("k", Clock.systemUTC());
-        String value = s.create(user, "youtube");
+        String value = s.create(user, "youtube", UUID.randomUUID());
         String forged = value.replace(user.toString(), UUID.randomUUID().toString());
         assertThat(s.verify(forged, "youtube")).isEmpty();
         assertThat(new OAuthState("other-key", Clock.systemUTC()).verify(value, "youtube")).isEmpty();
 
         OAuthState past = new OAuthState("k", Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
-        assertThat(s.verify(past.create(user, "youtube"), "youtube")).isEmpty();
+        assertThat(s.verify(past.create(user, "youtube", UUID.randomUUID()), "youtube")).isEmpty();
     }
 
     @Test
@@ -68,11 +72,11 @@ class ConnectionSecurityTest {
         var days = List.of(
                 new YouTubeClient.Day(LocalDate.of(2026, 11, 1), 100, 8, 2, 0, 1),
                 new YouTubeClient.Day(LocalDate.of(2026, 11, 2), 300, 20, 5, 5, 3));
-        var stats = ConnectionService.toStats(ch, days);
+        var stats = com.teguwaz.channel.ChannelService.toStats(ch, days);
         assertThat(stats.periodViews()).isEqualTo(400);
         assertThat(stats.subscribersGained()).isEqualTo(4);
         assertThat(stats.engagementRate()).isEqualTo(10.0);
         assertThat(stats.analyticsAvailable()).isTrue();
-        assertThat(ConnectionService.toStats(ch, List.of()).analyticsAvailable()).isFalse();
+        assertThat(com.teguwaz.channel.ChannelService.toStats(ch, List.of()).analyticsAvailable()).isFalse();
     }
 }

@@ -24,6 +24,8 @@ spring:
       max-disk-usage-per-part: ${UPLOAD_MAX_SIZE:200MB}
 
 teguwaz:
+  # Comma-separated emails that become admins when they first sign in (bootstrap)
+  admin-emails: ${ADMIN_EMAILS:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   storage:
@@ -49,7 +51,7 @@ teguwaz:
     youtube:
       client-id: ${YOUTUBE_CLIENT_ID:}
       client-secret: ${YOUTUBE_CLIENT_SECRET:}
-      redirect-uri: ${YOUTUBE_REDIRECT_URI:http://localhost:8080/api/connections/youtube/callback}
+      redirect-uri: ${YOUTUBE_REDIRECT_URI:http://localhost:8080/api/channels/oauth/youtube/callback}
 
 management:
   endpoints:
