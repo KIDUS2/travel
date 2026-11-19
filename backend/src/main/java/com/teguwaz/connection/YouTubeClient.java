@@ -32,6 +32,14 @@ public class YouTubeClient {
     public record Day(LocalDate date, long views, long likes, long comments, long shares, long subscribersGained) {
     }
 
+    /** Public facts about any channel, read with an API key (no owner sign-in). */
+    public record PublicChannel(String id, String title, String handle, String thumbnailUrl, long subscribers,
+                                boolean subscribersHidden, long views, long videos, String publishedAt, String uploadsPlaylistId) {
+    }
+
+    public record Video(String id, String title, String publishedAt, String thumbnailUrl, long views, long likes, long comments) {
+    }
+
     private final WebClient http;
 
     public YouTubeClient(WebClient.Builder builder) {
@@ -114,6 +122,76 @@ public class YouTubeClient {
                                 row.path(3).asLong(), row.path(4).asLong(), row.path(5).asLong()));
                     }
                     return days;
+                });
+    }
+
+    /** Looks a channel up by @handle, channel id or legacy username. Empty if it doesn't exist. */
+    public Mono<PublicChannel> publicChannel(String apiKey, String param, String value) {
+        String uri = UriComponentsBuilder.fromUriString("https://www.googleapis.com/youtube/v3/channels")
+                .queryParam("part", "snippet,statistics,contentDetails")
+                .queryParam(param, value)
+                .queryParam("key", apiKey)
+                .encode()
+                .toUriString();
+        return http.get().uri(java.net.URI.create(uri)).retrieve().bodyToMono(JsonNode.class)
+                .flatMap(j -> {
+                    JsonNode item = j.path("items").path(0);
+                    if (item.isMissingNode()) {
+                        return Mono.empty();
+                    }
+                    JsonNode sn = item.path("snippet");
+                    JsonNode st = item.path("statistics");
+                    JsonNode thumbs = sn.path("thumbnails");
+                    String thumb = thumbs.path("medium").path("url").asText(thumbs.path("default").path("url").asText(null));
+                    return Mono.just(new PublicChannel(item.path("id").asText(), sn.path("title").asText(),
+                            textOrNull(sn, "customUrl"), thumb, st.path("subscriberCount").asLong(),
+                            st.path("hiddenSubscriberCount").asBoolean(false), st.path("viewCount").asLong(),
+                            st.path("videoCount").asLong(), textOrNull(sn, "publishedAt"),
+                            textOrNull(item.path("contentDetails").path("relatedPlaylists"), "uploads")));
+                });
+    }
+
+    /** The channel's most recent uploads with their public counts. */
+    public Mono<List<Video>> latestVideos(String apiKey, String uploadsPlaylistId, int max) {
+        if (uploadsPlaylistId == null) {
+            return Mono.just(List.of());
+        }
+        String listUri = UriComponentsBuilder.fromUriString("https://www.googleapis.com/youtube/v3/playlistItems")
+                .queryParam("part", "contentDetails")
+                .queryParam("playlistId", uploadsPlaylistId)
+                .queryParam("maxResults", max)
+                .queryParam("key", apiKey)
+                .encode().toUriString();
+        return http.get().uri(java.net.URI.create(listUri)).retrieve().bodyToMono(JsonNode.class)
+                .map(j -> {
+                    List<String> ids = new ArrayList<>();
+                    for (JsonNode it : j.path("items")) {
+                        String id = it.path("contentDetails").path("videoId").asText("");
+                        if (!id.isEmpty()) ids.add(id);
+                    }
+                    return ids;
+                })
+                .flatMap(ids -> {
+                    if (ids.isEmpty()) {
+                        return Mono.just(List.<Video>of());
+                    }
+                    String vUri = UriComponentsBuilder.fromUriString("https://www.googleapis.com/youtube/v3/videos")
+                            .queryParam("part", "snippet,statistics")
+                            .queryParam("id", String.join(",", ids))
+                            .queryParam("key", apiKey)
+                            .encode().toUriString();
+                    return http.get().uri(java.net.URI.create(vUri)).retrieve().bodyToMono(JsonNode.class).map(j -> {
+                        List<Video> videos = new ArrayList<>();
+                        for (JsonNode v : j.path("items")) {
+                            JsonNode sn = v.path("snippet");
+                            JsonNode st = v.path("statistics");
+                            JsonNode thumbs = sn.path("thumbnails");
+                            videos.add(new Video(v.path("id").asText(), sn.path("title").asText(), textOrNull(sn, "publishedAt"),
+                                    thumbs.path("medium").path("url").asText(thumbs.path("default").path("url").asText(null)),
+                                    st.path("viewCount").asLong(), st.path("likeCount").asLong(), st.path("commentCount").asLong()));
+                        }
+                        return videos;
+                    });
                 });
     }
 

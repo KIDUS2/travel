@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.teguwaz.channel.ChannelDtos.ChannelRequest;
 import com.teguwaz.channel.ChannelDtos.ChannelResponse;
 import com.teguwaz.channel.ChannelDtos.PlatformInfo;
+import com.teguwaz.channel.ChannelDtos.PublicStats;
 import com.teguwaz.channel.ChannelDtos.StartResponse;
 import com.teguwaz.channel.ChannelDtos.YouTubeStats;
 import com.teguwaz.common.BadRequestException;
@@ -76,6 +77,12 @@ public class ChannelController {
     @DeleteMapping("/{id}/connect")
     public Mono<ChannelResponse> disconnect(@PathVariable UUID id) {
         return currentUser.currentUserId().flatMap(uid -> service.disconnect(uid, id));
+    }
+
+    /** Real public numbers for a YouTube channel, from its link (needs YOUTUBE_API_KEY on the server). */
+    @GetMapping("/{id}/public-stats")
+    public Mono<PublicStats> publicStats(@PathVariable UUID id) {
+        return currentUser.currentUserId().flatMap(uid -> service.publicStats(uid, id));
     }
 
     @GetMapping("/{id}/stats")

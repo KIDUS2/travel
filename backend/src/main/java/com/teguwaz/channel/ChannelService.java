@@ -18,6 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.teguwaz.channel.ChannelDtos.ChannelRequest;
 import com.teguwaz.channel.ChannelDtos.ChannelResponse;
 import com.teguwaz.channel.ChannelDtos.PlatformInfo;
+import com.teguwaz.channel.ChannelDtos.PublicStats;
 import com.teguwaz.channel.ChannelDtos.YouTubeStats;
 import com.teguwaz.common.BadRequestException;
 import com.teguwaz.common.NotFoundException;
@@ -61,7 +62,55 @@ public class ChannelService {
     }
 
     public List<PlatformInfo> platforms() {
-        return ORDER.stream().map(p -> new PlatformInfo(p, NAMES.get(p), statsSupported(p), statsAvailable(p), setupHint(p))).toList();
+        return ORDER.stream().map(p -> new PlatformInfo(p, NAMES.get(p), statsSupported(p), statsAvailable(p),
+                "youtube".equals(p) && props.youtube().hasApiKey(), setupHint(p))).toList();
+    }
+
+    private static final java.time.Duration PUBLIC_CACHE = java.time.Duration.ofMinutes(15);
+    private final java.util.concurrent.ConcurrentHashMap<String, PublicStats> publicCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Real public stats for a YouTube channel from its link: subscribers, views,
+     * videos and the latest uploads. Needs only the server's API key, not the
+     * owner's sign-in. Cached for 15 minutes per link to save API quota.
+     */
+    public Mono<PublicStats> publicStats(UUID userId, UUID id) {
+        return find(userId, id).flatMap(c -> {
+            if (!"youtube".equals(c.platform())) {
+                return Mono.error(new BadRequestException("Public stats are available for YouTube channels"));
+            }
+            if (!props.youtube().hasApiKey()) {
+                return Mono.error(new BadRequestException("Real YouTube stats need a YouTube Data API key on the server (YOUTUBE_API_KEY)."));
+            }
+            YouTubeChannelRef ref = YouTubeChannelRef.parse(c.url()).orElse(null);
+            if (ref == null) {
+                return Mono.error(new BadRequestException("Use your channel's @handle link, like https://www.youtube.com/@yourname"));
+            }
+            String cacheKey = ref.kind() + ":" + ref.value().toLowerCase(Locale.ROOT);
+            PublicStats cached = publicCache.get(cacheKey);
+            if (cached != null && cached.fetchedAt().isAfter(Instant.now().minus(PUBLIC_CACHE))) {
+                return Mono.just(cached);
+            }
+            String param = switch (ref.kind()) {
+                case HANDLE -> "forHandle";
+                case ID -> "id";
+                case USERNAME -> "forUsername";
+            };
+            String key = props.youtube().apiKey();
+            return youtube.publicChannel(key, param, ref.value())
+                    .switchIfEmpty(Mono.error(new NotFoundException("YouTube channel", ref.value())))
+                    .flatMap(ch -> youtube.latestVideos(key, ch.uploadsPlaylistId(), 12)
+                            .onErrorResume(e -> Mono.just(List.of()))
+                            .map(videos -> new PublicStats(ch.id(), ch.title(), ch.handle(), ch.thumbnailUrl(), ch.subscribers(),
+                                    ch.subscribersHidden(), ch.views(), ch.videos(), ch.publishedAt(), videos, Instant.now())))
+                    .doOnNext(stats -> publicCache.put(cacheKey, stats))
+                    .onErrorMap(org.springframework.web.reactive.function.client.WebClientResponseException.class, e -> {
+                        log.warn("YouTube API error {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+                        return new BadRequestException(e.getStatusCode().value() == 403
+                                ? "YouTube refused the request: check that YOUTUBE_API_KEY is valid, has the YouTube Data API v3 enabled, and has quota left."
+                                : "YouTube could not be reached (" + e.getStatusCode().value() + "). Try again shortly.");
+                    });
+        });
     }
 
     public Flux<ChannelResponse> list(UUID userId) {

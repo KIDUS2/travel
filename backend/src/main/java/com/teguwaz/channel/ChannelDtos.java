@@ -39,7 +39,23 @@ public final class ChannelDtos {
     }
 
     /** Platforms the user can pick, and whether stats can be connected on this server. */
-    public record PlatformInfo(String id, String name, boolean statsSupported, boolean statsAvailable, String setup) {
+    public record PlatformInfo(String id, String name, boolean statsSupported, boolean statsAvailable,
+                               boolean publicStatsAvailable, String setup) {
+    }
+
+    /** Real public numbers for a YouTube channel, read with the server's API key. */
+    public record PublicStats(
+            String channelId,
+            String title,
+            String handle,
+            String thumbnailUrl,
+            long subscribers,
+            boolean subscribersHidden,
+            long totalViews,
+            long videoCount,
+            String createdAt,
+            List<com.teguwaz.connection.YouTubeClient.Video> latestVideos,
+            Instant fetchedAt) {
     }
 
     public record StartResponse(String authorizeUrl) {
