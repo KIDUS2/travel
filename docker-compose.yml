@@ -1,4 +1,5 @@
 # Local infrastructure for Teguwaz: PostgreSQL, Keycloak and MinIO.
+# Ports clash with another project? Run e.g. KEYCLOAK_PORT=8181 POSTGRES_PORT=5433 docker compose up -d
 # Run the backend (mvn spring-boot:run) and frontend (npm run dev) on your machine.
 services:
   postgres:
@@ -8,7 +9,7 @@ services:
       POSTGRES_USER: teguwaz
       POSTGRES_PASSWORD: teguwaz
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,13 +19,13 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command: ["start-dev", "--import-realm", "--http-port=8180"]
+    command: ["start-dev", "--import-realm", "--http-port=${KEYCLOAK_PORT:-8180}"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
     ports:
-      - "8180:8180"
+      - "${KEYCLOAK_PORT:-8180}:${KEYCLOAK_PORT:-8180}"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import:ro
 
