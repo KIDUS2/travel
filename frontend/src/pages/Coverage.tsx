@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { api } from '../api/api';
 import { pinsFromMemories } from '../components/EthiopiaMap';
 import { Icon } from '../components/Icon';
-import { WorldCoverageMap, type MapScope } from '../components/WorldCoverageMap';
+import { ExploreMap } from '../components/ExploreMap';
 import { PageHeader } from '../components/PageHeader';
 import { computeCoverage } from '../lib/coverage';
 import { ETHIOPIA_REGIONS } from '../lib/regions';
@@ -25,7 +25,6 @@ const BUCKET = new Set(['ET-HA', 'ET-SI']);
 const COUNTRY_NUMERIC: Record<string, string> = { ET: '231', KE: '404', DJ: '262', SO: '706', SD: '729', SS: '728', ER: '232' };
 
 export function Coverage() {
-  const [scope, setScope] = useState<MapScope>('world');
   const { data, error } = useAsync(() => api.listMemories({ size: 100 }), []);
   const memories = data?.items ?? [];
   const cov = computeCoverage(memories);
@@ -44,24 +43,18 @@ export function Coverage() {
 
   return (
     <>
-      <PageHeader title="Coverage map" am="የጉዞ ካርታ" subtitle="Where you've been, on a real map."
-        actions={
-          <div className="segmented" role="group" aria-label="Map scope">
-            <button type="button" aria-pressed={scope === 'world'} onClick={() => setScope('world')}>World · <span className="am">ዓለም</span></button>
-            <button type="button" aria-pressed={scope === 'africa'} onClick={() => setScope('africa')}>Africa · <span className="am">አፍሪካ</span></button>
-            <button type="button" aria-pressed={scope === 'ethiopia'} onClick={() => setScope('ethiopia')}>Ethiopia · <span className="am">ኢትዮጵያ</span></button>
-          </div>
-        } />
+      <PageHeader title="Coverage map" am="የጉዞ ካርታ" subtitle="Explore anywhere in the world. Tap a pin to see the memories from that place." />
 
       {error ? <div className="banner error">{error}</div> : null}
 
       <section aria-labelledby="mapcard" className="card card-lg" style={{ overflow: 'hidden', padding: 0 }}>
         <div className="tibeb" />
-        <div className="stack" style={{ padding: 24, gap: 14 }}>
-          <h2 id="mapcard" className="section-title">
-            {scope === 'world' ? <>World map <span className="am">· የዓለም ካርታ</span></> : scope === 'africa' ? <>Africa <span className="am">· አፍሪካ</span></> : <>Ethiopia <span className="am">· ኢትዮጵያ</span></>}
-          </h2>
-          <WorldCoverageMap scope={scope} visitedCountryIds={visitedCountryIds} visitedRegionCodes={cov.visited} pins={pins} />
+        <div className="stack" style={{ padding: 20, gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <h2 id="mapcard" className="section-title">My world <span className="am">· የእኔ ዓለም</span></h2>
+            <span className="muted small">{visitedCountryIds.size} countr{visitedCountryIds.size === 1 ? 'y' : 'ies'} · {pins.length} places · {memories.length} memories</span>
+          </div>
+          {data ? <ExploreMap memories={memories} visitedCountryIds={visitedCountryIds} /> : <div className="xm" style={{ height: 420 }} />}
         </div>
       </section>
 

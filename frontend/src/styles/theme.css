@@ -203,3 +203,44 @@ table.data tr:last-child td { border-bottom: 0; }
 .banner.info { background: var(--yellow-50); color: #4a3a12; }
 .banner.error { background: var(--red-50); color: #8a0c12; }
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+
+/* Explore map */
+.xm { position: relative; border-radius: 16px; overflow: hidden; background: #DCEBEF; user-select: none; }
+.xm-svg { display: block; width: 100%; height: auto; min-height: 360px; cursor: grab; touch-action: none; }
+.xm-svg:active { cursor: grabbing; }
+.xm-country { fill: #EAE3D2; stroke: #FFFFFF; stroke-width: 0.6; cursor: pointer; transition: fill 0.15s; }
+.xm-country:hover { fill: #D9CFB8; }
+.xm-country.visited { fill: #078930; }
+.xm-country.visited:hover { fill: #06742A; }
+.xm-pin { cursor: pointer; }
+.xm-pin:focus { outline: none; }
+.xm-pin:focus circle:nth-child(2) { stroke: #FCDD09; stroke-width: 3; }
+.xm-tools { position: absolute; top: 12px; left: 12px; right: 70px; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; pointer-events: none; }
+.xm-tools > * { pointer-events: auto; }
+.xm-search { position: relative; display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 10px; padding: 0 10px; min-height: 40px; box-shadow: var(--shadow); width: 230px; }
+.xm-search input { border: 0; outline: none; flex: 1; min-width: 0; font-size: 14px; background: transparent; }
+.xm-results { position: absolute; top: 44px; left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: #fff; border-radius: 10px; box-shadow: 0 10px 30px rgba(29,26,20,0.18); z-index: 3; }
+.xm-results button { width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; min-height: 36px; }
+.xm-results button:hover { background: var(--green-50); }
+.xm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.xm-chips button { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 0; background: rgba(255,255,255,0.92); box-shadow: var(--shadow); cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.xm-chips button .am { font-weight: 500; color: var(--muted); }
+.xm-chips button:hover { background: #fff; }
+.xm-chips button.mine { background: var(--green-900); color: #fff; }
+.xm-zoom { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+.xm-zoom button { width: 44px; height: 44px; border: 0; background: none; font-size: 22px; cursor: pointer; }
+.xm-zoom button + button { border-top: 1px solid var(--line); }
+.xm-zoom button:hover { background: var(--green-50); }
+.xm-status { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink); pointer-events: none; }
+.xm-status span { background: rgba(255,255,255,0.88); padding: 4px 10px; border-radius: 999px; }
+.xm-card { position: absolute; top: 112px; right: 12px; width: min(320px, calc(100% - 24px)); max-height: calc(100% - 158px); overflow: auto; background: #fff; border-radius: 14px; box-shadow: 0 16px 40px rgba(29,26,20,0.25); }
+.xm-card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.xm-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.xm-photos span { aspect-ratio: 1; border-radius: 6px; background: #D9CFBC center / cover; display: grid; place-items: center; color: #fff; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+.xm-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+.xm-facts div { background: var(--bg); border-radius: 10px; padding: 8px; text-align: center; }
+.xm-facts dt { font-size: 11px; color: var(--muted); }
+.xm-facts dd { margin: 0; font-family: var(--font-head); font-weight: 700; font-size: 20px; }
+.xm-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.xm-list li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--sand); padding-bottom: 6px; font-size: 14px; }
+@media (max-width: 640px) { .xm-tools { right: 64px; } .xm-search { width: 100%; } .xm-card { top: auto; bottom: 44px; } }
