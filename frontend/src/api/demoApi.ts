@@ -144,10 +144,18 @@ export const demoApi: TeguwazApi = {
     m.media = m.media.filter((x) => x.id !== mediaId);
     return delay(undefined);
   },
-  listBooks: async () => delay(books.map((b) => ({
-    id: b.id, title: b.title, tripId: b.tripId, bookType: b.bookType, status: b.status,
-    pageCount: b.pages.length, settings: b.settings, updatedAt: b.updatedAt,
-  }))),
+  listBooks: async () => delay(books.map((b) => {
+    const cover = b.pages[0] ?? null;
+    const photoId = cover?.slots.p1;
+    const url = photoId
+      ? memories.flatMap((m) => m.media).find((x) => x.id === photoId)?.url
+        ?? (bookPhotos.get(b.id) ?? []).find((x) => x.id === photoId)?.url
+      : undefined;
+    return {
+      id: b.id, title: b.title, tripId: b.tripId, bookType: b.bookType, status: b.status,
+      pageCount: b.pages.length, settings: b.settings, coverPage: cover, coverPhotoUrl: url ?? null, updatedAt: b.updatedAt,
+    };
+  })),
   getBook: async (id) => {
     const b = books.find((x) => x.id === id);
     if (!b) throw new Error('Book not found');

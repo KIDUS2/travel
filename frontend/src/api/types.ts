@@ -110,6 +110,9 @@ export interface BookSummary {
   status: 'DRAFT' | 'ORDERED';
   pageCount: number;
   settings: BookSettings;
+  /** First page, so lists can draw the real cover. */
+  coverPage: BookPage | null;
+  coverPhotoUrl: string | null;
   updatedAt: string;
 }
 

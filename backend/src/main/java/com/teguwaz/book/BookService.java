@@ -39,8 +39,28 @@ public class BookService {
         this.mapper = mapper;
     }
 
+    /** Books with their cover page and cover photo, so the list can show real covers. */
     public Flux<BookSummary> list(UUID userId) {
-        return books.findByUserIdOrderByUpdatedAtDesc(userId).map(this::toSummary);
+        return books.findByUserIdOrderByUpdatedAtDesc(userId).concatMap(b -> {
+            JsonNode pages = fromJson(b.pages(), JsonNodeFactory.instance.arrayNode());
+            JsonNode cover = pages.size() > 0 ? pages.get(0) : null;
+            UUID photoId = coverPhotoId(cover);
+            Mono<String> url = photoId == null ? Mono.empty() : photos.photoUrl(userId, photoId);
+            return url.map(u -> toSummary(b, pages, cover, u))
+                    .defaultIfEmpty(toSummary(b, pages, cover, null));
+        });
+    }
+
+    private static UUID coverPhotoId(JsonNode cover) {
+        if (cover == null) {
+            return null;
+        }
+        String id = cover.path("slots").path("p1").asText("");
+        try {
+            return id.isEmpty() ? null : UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public Mono<BookResponse> get(UUID userId, UUID bookId) {
@@ -133,10 +153,9 @@ public class BookService {
         }
     }
 
-    private BookSummary toSummary(Book b) {
-        JsonNode pages = fromJson(b.pages(), JsonNodeFactory.instance.arrayNode());
+    private BookSummary toSummary(Book b, JsonNode pages, JsonNode cover, String coverPhotoUrl) {
         return new BookSummary(b.id(), b.title(), b.tripId(), b.bookType(), b.status(), pages.size(),
-                fromJson(b.settings(), JsonNodeFactory.instance.objectNode()), b.updatedAt());
+                fromJson(b.settings(), JsonNodeFactory.instance.objectNode()), cover, coverPhotoUrl, b.updatedAt());
     }
 
     private BookResponse toResponse(Book b) {

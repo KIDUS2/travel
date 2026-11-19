@@ -27,13 +27,15 @@ class BookServiceTest {
     private final UUID userId = UUID.randomUUID();
     private BookRepository books;
     private TripRepository trips;
+    private BookMediaService photos;
     private BookService service;
 
     @BeforeEach
     void setUp() {
         books = mock(BookRepository.class);
         trips = mock(TripRepository.class);
-        service = new BookService(books, trips, mock(BookMediaService.class), mapper);
+        photos = mock(BookMediaService.class);
+        service = new BookService(books, trips, photos, mapper);
         when(books.save(any())).thenAnswer(inv -> {
             Book b = inv.getArgument(0);
             return Mono.just(new Book(UUID.randomUUID(), b.userId(), b.tripId(), b.title(), b.bookType(),
@@ -91,5 +93,21 @@ class BookServiceTest {
         StepVerifier.create(service.get(userId, bookId))
                 .expectError(NotFoundException.class)
                 .verify();
+    }
+
+    @Test
+    void listIncludesCoverPageAndCoverPhotoUrl() throws Exception {
+        UUID photoId = UUID.randomUUID();
+        JsonNode pages = mapper.readTree("[{\"id\":\"c\",\"layout\":\"cover\",\"slots\":{\"p1\":\"" + photoId + "\",\"title\":\"Lalibela\"}},{\"id\":\"p\",\"layout\":\"story\",\"slots\":{}}]");
+        Book book = new Book(UUID.randomUUID(), userId, null, "Lalibela", "classic",
+                service.settingsJson(null), service.pagesJson(pages), "DRAFT", java.time.Instant.now(), java.time.Instant.now());
+        when(books.findByUserIdOrderByUpdatedAtDesc(userId)).thenReturn(reactor.core.publisher.Flux.just(book));
+        when(photos.photoUrl(userId, photoId)).thenReturn(Mono.just("https://signed/cover.jpg"));
+
+        StepVerifier.create(service.list(userId))
+                .expectNextMatches(s -> s.pageCount() == 2
+                        && s.coverPage().path("slots").path("title").asText().equals("Lalibela")
+                        && "https://signed/cover.jpg".equals(s.coverPhotoUrl()))
+                .verifyComplete();
     }
 }

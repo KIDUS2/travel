@@ -34,6 +34,8 @@ public final class BookDtos {
             String status,
             int pageCount,
             JsonNode settings,
+            JsonNode coverPage,
+            String coverPhotoUrl,
             Instant updatedAt) {
     }
 

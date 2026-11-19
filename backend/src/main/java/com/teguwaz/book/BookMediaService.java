@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.teguwaz.common.BadRequestException;
 import com.teguwaz.common.NotFoundException;
+import com.teguwaz.media.MemoryMediaRepository;
 import com.teguwaz.media.StorageService;
 
 import reactor.core.publisher.Flux;
@@ -32,12 +33,26 @@ public class BookMediaService {
 
     private final BookMediaRepository mediaRepo;
     private final BookRepository books;
+    private final MemoryMediaRepository memoryMedia;
     private final StorageService storage;
 
-    public BookMediaService(BookMediaRepository mediaRepo, BookRepository books, StorageService storage) {
+    public BookMediaService(BookMediaRepository mediaRepo, BookRepository books, MemoryMediaRepository memoryMedia,
+                            StorageService storage) {
         this.mediaRepo = mediaRepo;
         this.books = books;
+        this.memoryMedia = memoryMedia;
         this.storage = storage;
+    }
+
+    /**
+     * Signed URL for a photo placed on a page, whether it was uploaded to the
+     * book or belongs to one of the user's memories. Empty if not theirs.
+     */
+    public Mono<String> photoUrl(UUID userId, UUID photoId) {
+        return mediaRepo.findByIdAndUserId(photoId, userId)
+                .map(BookMedia::objectKey)
+                .switchIfEmpty(Mono.defer(() -> memoryMedia.findByIdAndUserId(photoId, userId).map(m -> m.objectKey())))
+                .map(storage::presignedGetUrl);
     }
 
     public Flux<BookPhoto> list(UUID bookId) {
