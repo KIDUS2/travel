@@ -41,6 +41,16 @@ teguwaz:
     region: ${MINIO_REGION:us-east-1}
     presign-expiry-minutes: 60
 
+  platforms:
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+    # Base64 32 bytes, encrypts stored OAuth tokens: openssl rand -base64 32
+    encryption-key: ${TOKEN_ENCRYPTION_KEY:}
+    state-key: ${OAUTH_STATE_KEY:}
+    youtube:
+      client-id: ${YOUTUBE_CLIENT_ID:}
+      client-secret: ${YOUTUBE_CLIENT_SECRET:}
+      redirect-uri: ${YOUTUBE_REDIRECT_URI:http://localhost:8080/api/connections/youtube/callback}
+
 management:
   endpoints:
     web:
