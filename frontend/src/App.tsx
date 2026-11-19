@@ -3,7 +3,8 @@ import { AuthProvider } from './auth/AuthProvider';
 import { Layout } from './components/Layout';
 import { LangProvider } from './lib/i18n';
 import { Alerts } from './pages/Alerts';
-import { Books } from './pages/Books';
+import { BookEditor } from './pages/books/BookEditor';
+import { Books } from './pages/books/Books';
 import { Coverage } from './pages/Coverage';
 import { Creator } from './pages/Creator';
 import { Home } from './pages/Home';
@@ -15,6 +16,7 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="books/:id" element={<BookEditor />} />
             <Route element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="memories" element={<Memories />} />

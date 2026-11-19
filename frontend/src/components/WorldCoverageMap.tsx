@@ -46,11 +46,12 @@ function regionCodeOf(f: RegionFeature): string | undefined {
   return typeof v === 'string' ? v.toUpperCase() : undefined;
 }
 
-export function WorldCoverageMap({ scope, visitedCountryIds, visitedRegionCodes, pins }: {
+export function WorldCoverageMap({ scope, visitedCountryIds, visitedRegionCodes, pins, caption = true }: {
   scope: MapScope;
   visitedCountryIds: Set<string>;
   visitedRegionCodes: Set<string>;
   pins: CoveragePin[];
+  caption?: boolean;
 }) {
   const [ethiopiaDetailed, setEthiopiaDetailed] = useState<CountryFeature | null>(null);
   const [regions, setRegions] = useState<RegionFeature[] | null>(null);
@@ -149,13 +150,13 @@ export function WorldCoverageMap({ scope, visitedCountryIds, visitedRegionCodes,
           );
         })}
       </svg>
-      <figcaption style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 8 }} className="muted small">
+      {caption ? <figcaption style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 8 }} className="muted small">
         <span>{hover ? <strong style={{ color: 'var(--ink)' }}>{hover}</strong> : visitedCount}</span>
         <span>
           {scope === 'ethiopia' && !regions ? 'Region borders appear when an ADM1 boundary file is added · ' : ''}
           Map data: Natural Earth
         </span>
-      </figcaption>
+      </figcaption> : null}
     </figure>
   );
 }

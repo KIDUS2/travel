@@ -20,8 +20,8 @@ Built one feature at a time.
 | # | Feature | Backend | Frontend |
 |---|---|---|---|
 | 1 | Account, trips, memories, photo/video/voice upload, privacy | ✅ | ✅ connected |
-| 2 | Coverage map (region %, badges) | computed from memories for now | ✅ |
-| 3 | Book studio (types, customize, preview, order) | ⏳ next | ✅ UI |
+| 2 | Coverage map: world map with Ethiopia zoom, region %, badges | computed from memories for now | ✅ |
+| 3 | Book studio: create from a trip with auto-fill, page editor (drag photos, edit text, layouts, backgrounds, add/reorder pages), preview, print / PDF | ✅ | ✅ connected (ordering later) |
 | 4 | Creator studio (YouTube → Instagram → TikTok) | ⏳ | ✅ UI, sample data |
 | 5 | Policy alerts | ⏳ | ✅ UI, sample data |
 
@@ -85,6 +85,15 @@ All endpoints need a Keycloak bearer token.
 | DELETE | `/api/memories/{id}/media/{mediaId}` | |
 
 Media is stored in a private MinIO bucket; responses carry short-lived signed URLs.
+
+## API (Feature 3: books)
+
+| Method | Path | |
+|---|---|---|
+| GET / POST | `/api/books` | List (with page counts) / create |
+| GET / PUT / DELETE | `/api/books/{id}` | The editor autosaves the whole book with `PUT` |
+
+A book's `pages` is a JSON array. Each page has a `layout` (`cover`, `title`, `full-photo`, `photo-text`, `two-photos`, `grid-3`, `story`, `map`), a `background` (`white`, `cream`, `green`, `tibeb`) and `slots`: text, or a media id for photo boxes. At most 200 pages per book.
 
 ## Tests
 

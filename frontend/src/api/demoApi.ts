@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { Media, Memory, MemoryInput, Trip } from './types';
+import type { Book, Media, Memory, MemoryInput, Trip } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -39,10 +39,43 @@ let memories: Memory[] = [
     'Yellow, green and orange pools: the strangest place I have ever stood.'),
 ];
 
+/** Simple drawn landscapes so demo books have pictures to work with (not real photos). */
+function demoPhoto(sky: string, land: string, sun: string, peaks: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="#FDF3DC"/></linearGradient></defs><rect width="600" height="400" fill="url(#s)"/><circle cx="460" cy="110" r="46" fill="${sun}"/><path d="${peaks}" fill="${land}"/><path d="M0 330 Q150 300 300 325 T600 315 V400 H0Z" fill="${land}" opacity="0.75"/></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+const PHOTO_SETS: Record<string, [string, string, string, string][]> = {
+  Gondar: [['#9CC3D5', '#8A6A48', '#F6C453', 'M0 300 L120 210 L200 260 L320 170 L430 250 L600 200 V400 H0Z']],
+  'Simien Mountains': [
+    ['#A7C7DC', '#4F6B45', '#FFE29A', 'M0 290 L90 150 L170 230 L260 110 L360 220 L470 140 L600 240 V400 H0Z'],
+    ['#C9DCE6', '#5D7A4E', '#FFF1C1', 'M0 310 L140 180 L230 250 L350 140 L480 230 L600 170 V400 H0Z'],
+  ],
+  Lalibela: [
+    ['#F2B880', '#9C6B43', '#FBE3A1', 'M0 300 L160 240 L250 270 L380 220 L600 260 V400 H0Z'],
+    ['#E8A87C', '#7E5434', '#FFD58A', 'M0 320 L120 260 L300 290 L420 240 L600 280 V400 H0Z'],
+    ['#F5CBA7', '#A47148', '#FFE8B0', 'M0 310 L200 250 L330 280 L470 230 L600 270 V400 H0Z'],
+  ],
+  Axum: [['#B9D3E3', '#9C937A', '#F7D774', 'M0 320 L180 280 L300 300 L450 270 L600 300 V400 H0Z']],
+  Dallol: [
+    ['#F4D35E', '#E07A2E', '#FFF6C2', 'M0 330 L150 300 L280 320 L420 290 L600 315 V400 H0Z'],
+    ['#EBD96B', '#5FA36E', '#FFF6C2', 'M0 320 L130 295 L260 315 L400 285 L600 305 V400 H0Z'],
+  ],
+};
+
+memories.forEach((m) => {
+  const set = PHOTO_SETS[m.placeName ?? ''] ?? [];
+  m.media = set.map(([sky, land, sun, peaks], i) => ({
+    id: uid(), kind: 'PHOTO', contentType: 'image/svg+xml', sizeBytes: 0, sortOrder: i, url: demoPhoto(sky, land, sun, peaks),
+  }));
+});
+
 function recount() {
   trips.forEach((t) => (t.memoryCount = memories.filter((m) => m.tripId === t.id).length));
 }
 recount();
+
+let books: Book[] = [];
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), 120));
 
@@ -108,6 +141,30 @@ export const demoApi: TeguwazApi = {
   deleteMedia: async (memoryId, mediaId) => {
     const m = find(memoryId);
     m.media = m.media.filter((x) => x.id !== mediaId);
+    return delay(undefined);
+  },
+  listBooks: async () => delay(books.map((b) => ({
+    id: b.id, title: b.title, tripId: b.tripId, bookType: b.bookType, status: b.status,
+    pageCount: b.pages.length, settings: b.settings, updatedAt: b.updatedAt,
+  }))),
+  getBook: async (id) => {
+    const b = books.find((x) => x.id === id);
+    if (!b) throw new Error('Book not found');
+    return delay(b);
+  },
+  createBook: async (input) => {
+    const b: Book = { ...structuredClone(input), id: uid(), status: 'DRAFT', createdAt: now(), updatedAt: now() };
+    books = [b, ...books];
+    return delay(b);
+  },
+  saveBook: async (id, input) => {
+    const i = books.findIndex((x) => x.id === id);
+    if (i < 0) throw new Error('Book not found');
+    books[i] = { ...books[i], ...structuredClone(input), updatedAt: now() };
+    return delay(books[i]);
+  },
+  deleteBook: async (id) => {
+    books = books.filter((b) => b.id !== id);
     return delay(undefined);
   },
 };

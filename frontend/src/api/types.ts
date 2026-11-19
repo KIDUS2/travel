@@ -76,3 +76,59 @@ export interface ApiErrorBody {
   message: string;
   fields?: Record<string, string>;
 }
+
+// ---- Books (Feature 3) ----
+
+export type BookType = 'classic' | 'journal' | 'atlas' | 'mini' | 'custom';
+export type PageLayout = 'cover' | 'title' | 'full-photo' | 'photo-text' | 'two-photos' | 'grid-3' | 'story' | 'map';
+export type PageBackground = 'white' | 'cream' | 'green' | 'tibeb';
+export type BookSize = 'a4-landscape' | 'a4-portrait' | 'a5-portrait' | 'square';
+
+/** One page. Photo slots hold a media id; text slots hold text. */
+export interface BookPage {
+  id: string;
+  layout: PageLayout;
+  background: PageBackground;
+  slots: Record<string, string>;
+  memoryId?: string;
+}
+
+export interface BookSettings {
+  size: BookSize;
+  cover: 'tibeb' | 'minimal' | 'photo';
+  finish: 'hard' | 'soft' | 'lay';
+  language: 'en' | 'am' | 'both';
+  includeMap: boolean;
+  ethiopianDates: boolean;
+}
+
+export interface BookSummary {
+  id: string;
+  title: string;
+  tripId: string | null;
+  bookType: BookType;
+  status: 'DRAFT' | 'ORDERED';
+  pageCount: number;
+  settings: BookSettings;
+  updatedAt: string;
+}
+
+export interface Book {
+  id: string;
+  title: string;
+  tripId: string | null;
+  bookType: BookType;
+  status: 'DRAFT' | 'ORDERED';
+  settings: BookSettings;
+  pages: BookPage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookInput {
+  title: string;
+  tripId: string | null;
+  bookType: BookType;
+  settings: BookSettings;
+  pages: BookPage[];
+}
