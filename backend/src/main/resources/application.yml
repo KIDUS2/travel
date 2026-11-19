@@ -27,6 +27,12 @@ teguwaz:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   storage:
+    # local = folder on this server (default) · s3 = MinIO / SeaweedFS / S3
+    type: ${STORAGE_TYPE:local}
+    local:
+      dir: ${UPLOAD_DIR:./data/uploads}
+      signing-key: ${FILE_LINK_SIGNING_KEY:}
+      public-base-url: ${FILE_PUBLIC_BASE_URL:}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:teguwaz}

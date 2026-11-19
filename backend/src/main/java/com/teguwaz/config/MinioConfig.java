@@ -1,13 +1,16 @@
 package com.teguwaz.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import io.minio.MinioClient;
 
+/** Only used when {@code teguwaz.storage.type=s3}. */
 @Configuration
+@ConditionalOnProperty(prefix = "teguwaz.storage", name = "type", havingValue = "s3")
 public class MinioConfig {
 
     /** Client used by the backend to read and write objects. */

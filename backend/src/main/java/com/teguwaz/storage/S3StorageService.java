@@ -1,4 +1,4 @@
-package com.teguwaz.media;
+package com.teguwaz.storage;
 
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -23,19 +24,21 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Wraps the (blocking) MinIO client so callers stay non-blocking. Buckets are
- * private: browsers only get short-lived presigned URLs.
+ * S3-compatible storage (MinIO, SeaweedFS, AWS S3). Wraps the blocking MinIO
+ * client so callers stay non-blocking. Buckets are private: browsers only get
+ * short-lived presigned URLs. Enabled with {@code teguwaz.storage.type=s3}.
  */
 @Service
-public class StorageService {
+@ConditionalOnProperty(prefix = "teguwaz.storage", name = "type", havingValue = "s3")
+public class S3StorageService implements StorageService {
 
-    private static final Logger log = LoggerFactory.getLogger(StorageService.class);
+    private static final Logger log = LoggerFactory.getLogger(S3StorageService.class);
 
     private final MinioClient client;
     private final MinioClient presignClient;
     private final StorageProperties props;
 
-    public StorageService(MinioClient client,
+    public S3StorageService(MinioClient client,
                           @Qualifier("presignMinioClient") MinioClient presignClient,
                           StorageProperties props) {
         this.client = client;
@@ -59,6 +62,7 @@ public class StorageService {
                         err -> log.warn("Could not check storage bucket {}: {}", props.bucket(), err.getMessage()));
     }
 
+    @Override
     public Mono<Void> upload(String objectKey, Path file, String contentType) {
         return Mono.fromCallable(() -> client.uploadObject(UploadObjectArgs.builder()
                         .bucket(props.bucket())
@@ -70,6 +74,7 @@ public class StorageService {
                 .then();
     }
 
+    @Override
     public Mono<Void> delete(String objectKey) {
         return Mono.fromRunnable(() -> {
                     try {
@@ -83,6 +88,7 @@ public class StorageService {
     }
 
     /** Signing is local (region is preset), so this does not block on the network. */
+    @Override
     public String presignedGetUrl(String objectKey) {
         try {
             return presignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()

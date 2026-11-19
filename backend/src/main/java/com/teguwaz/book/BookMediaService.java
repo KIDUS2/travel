@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import com.teguwaz.common.BadRequestException;
 import com.teguwaz.common.NotFoundException;
 import com.teguwaz.media.MemoryMediaRepository;
-import com.teguwaz.media.StorageService;
+import com.teguwaz.storage.StorageService;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

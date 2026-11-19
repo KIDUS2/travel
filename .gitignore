@@ -14,3 +14,6 @@ frontend/.env.local
 .vscode/
 *.iml
 .DS_Store
+
+# Local file storage
+backend/data/
