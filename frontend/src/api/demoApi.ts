@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { AdminUser, Book, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
+import type { PublicStats, AdminUser, Book, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -77,14 +77,14 @@ recount();
 
 let books: Book[] = [];
 const PLATFORMS: PlatformInfo[] = [
-  { id: 'youtube', name: 'YouTube', statsSupported: true, statsAvailable: true, setup: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.' },
-  { id: 'tiktok', name: 'TikTok', statsSupported: false, statsAvailable: false, setup: 'Stats coming next: needs a TikTok for Developers app approved for the Display API.' },
-  { id: 'instagram', name: 'Instagram', statsSupported: false, statsAvailable: false, setup: "Stats coming next: needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review." },
-  { id: 'facebook', name: 'Facebook', statsSupported: false, statsAvailable: false, setup: "Stats coming next: needs a Meta app with Pages access and Meta's app review." },
-  { id: 'x', name: 'X (Twitter)', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
-  { id: 'telegram', name: 'Telegram', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
-  { id: 'website', name: 'Website or blog', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
-  { id: 'other', name: 'Other', statsSupported: false, statsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'youtube', name: 'YouTube', statsSupported: true, statsAvailable: true, publicStatsAvailable: true, setup: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.' },
+  { id: 'tiktok', name: 'TikTok', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'Stats coming next: needs a TikTok for Developers app approved for the Display API.' },
+  { id: 'instagram', name: 'Instagram', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: "Stats coming next: needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review." },
+  { id: 'facebook', name: 'Facebook', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: "Stats coming next: needs a Meta app with Pages access and Meta's app review." },
+  { id: 'x', name: 'X (Twitter)', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'telegram', name: 'Telegram', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'website', name: 'Website or blog', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
+  { id: 'other', name: 'Other', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
 ];
 const platformInfo = (p: Platform) => PLATFORMS.find((x) => x.id === p)!;
 let channels: Channel[] = [];
@@ -257,6 +257,20 @@ export const demoApi: TeguwazApi = {
   disconnectChannel: async (id) => {
     channels = channels.map((c) => (c.id === id ? { ...c, connected: false, accountName: null, connectedAt: null, lastSyncedAt: null } : c));
     return delay(channels.find((c) => c.id === id)!);
+  },
+  channelPublicStats: async (id) => {
+    const c = channels.find((x) => x.id === id);
+    if (!c) throw new Error('Channel not found');
+    // Demo mode has no backend, so these are SAMPLE numbers (the UI labels them as such).
+    const titles = ['Lalibela at sunrise', 'Danakil: 45°C walk', 'Simien geladas up close', 'Addis street food', 'Gondar castles tour', 'Buna ceremony at home'];
+    const stats: PublicStats = {
+      channelId: 'UC-demo', title: c.name, handle: c.url.match(/@[\w.-]+/)?.[0] ?? null, thumbnailUrl: null,
+      subscribers: 4820, subscribersHidden: false, totalViews: 312400, videoCount: 46, createdAt: '2023-03-01T00:00:00Z',
+      latestVideos: titles.map((t, i) => ({ id: `v${i}`, title: t, publishedAt: new Date(Date.now() - (i * 6 + 2) * 86400000).toISOString(),
+        thumbnailUrl: null, views: [12400, 30100, 8700, 5200, 9900, 3100][i], likes: [610, 1500, 420, 260, 470, 150][i], comments: [48, 120, 31, 22, 40, 9][i] })),
+      fetchedAt: now(),
+    };
+    return delay(stats);
   },
   channelStats: async (id) => {
     const c = channels.find((x) => x.id === id);

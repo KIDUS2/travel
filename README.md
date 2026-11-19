@@ -74,6 +74,7 @@ All settings have local defaults in `backend/src/main/resources/application.yml`
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | `teguwaz` / `teguwaz-secret` / `teguwaz-media` |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` |
 | `UPLOAD_MAX_SIZE` | `200MB` |
+| `YOUTUBE_API_KEY` | **Real public stats from a channel link** (subscribers, views, latest videos). Google Cloud Console → enable *YouTube Data API v3* → Credentials → Create API key → restrict it to that API. No sign-in needed. |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | Google OAuth client (Web application) with YouTube Data API v3 and YouTube Analytics API enabled |
 | `YOUTUBE_REDIRECT_URI` | `http://localhost:8080/api/channels/oauth/youtube/callback` (add it to the OAuth client) |
 | `ADMIN_EMAILS` | Comma-separated emails that become admins on first sign-in |
@@ -144,3 +145,14 @@ Suspended users get `403` on every API call (their data is kept).
 cd backend && mvn test
 cd frontend && npm test     # includes the Ethiopian calendar conversion
 ```
+
+### Seeing real channel numbers
+
+The web app starts in demo mode (`VITE_DEMO_MODE` defaults to `true`), where every number is sample data and is labelled as such.
+For your real channel:
+
+1. Start the backend with `YOUTUBE_API_KEY` set.
+2. Start the frontend with `VITE_DEMO_MODE=false npm run dev`.
+3. In Creator studio, add the channel with its link (`youtube.com/@handle`, `/channel/UC…` or `/user/name`) and open **View stats**.
+
+**Connect analytics** (the OAuth client above) adds private daily views and engagement, and only the channel owner can grant it.

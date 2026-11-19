@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/api';
 import { ApiError } from '../api/client';
-import type { Channel, Platform, PlatformInfo, YouTubeStats } from '../api/types';
+import type { Channel, Platform, PlatformInfo, PublicStats, YouTubeStats } from '../api/types';
+import { config } from '../config';
 import { BarChart, Kpi, RankedBars, SERIES, SplitBar, fmt } from '../components/charts';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
@@ -31,12 +32,6 @@ const PLACEHOLDER: Record<Platform, string> = {
   other: 'https://…',
 };
 
-const SAMPLE_PLACES = [
-  { place: 'Lalibela', am: 'ላሊበላ', views: 137000 },
-  { place: 'Danakil Depression', am: 'ዳናኪል', views: 90000 },
-  { place: 'Simien Mountains', am: 'ስሜን', views: 27000 },
-  { place: 'Addis Ababa food tour', am: 'አዲስ አበባ', views: 17000 },
-];
 
 export function Creator() {
   const [params, setParams] = useSearchParams();
@@ -51,9 +46,13 @@ export function Creator() {
 
   const platforms = platformsQ.data ?? [];
   const channels = channelsQ.data ?? [];
-  const connected = channels.filter((c) => c.connected);
-  const activeStatsId = statsFor && connected.some((c) => c.id === statsFor) ? statsFor : connected[0]?.id ?? null;
-  const statsQ = useAsync(() => (activeStatsId ? api.channelStats(activeStatsId) : Promise.resolve(null)), [activeStatsId]);
+  const youtubeChannels = channels.filter((c) => c.platform === 'youtube');
+  const activeStatsId = statsFor && youtubeChannels.some((c) => c.id === statsFor) ? statsFor : youtubeChannels[0]?.id ?? null;
+  const active = youtubeChannels.find((c) => c.id === activeStatsId) ?? null;
+  const ytInfo = platforms.find((p) => p.id === 'youtube');
+  const publicReady = !!ytInfo?.publicStatsAvailable;
+  const publicQ = useAsync(() => (active && publicReady ? api.channelPublicStats(active.id) : Promise.resolve(null)), [active?.id, active?.url, publicReady]);
+  const statsQ = useAsync(() => (active?.connected ? api.channelStats(active.id) : Promise.resolve(null)), [active?.id, active?.connected]);
 
   const justConnected = params.get('connected');
   const returnedError = params.get('error');
@@ -133,21 +132,21 @@ export function Creator() {
                   <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</strong>
                   <span className="muted small">{platforms.find((p) => p.id === c.platform)?.name ?? c.platform}</span>
                 </div>
-                {c.connected ? <span className="tag green" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>● Stats on</span> : null}
+                {c.connected ? <span className="tag green" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>● Analytics on</span> : null}
               </div>
               <a href={c.url} target="_blank" rel="noopener noreferrer" className="channel-link"><Icon name="link" size={14} />{c.url.replace(/^https:\/\//, '')}</a>
               <div className="channel-actions">
                 {c.statsSupported ? (
-                  c.connected ? (
-                    <>
-                      <button type="button" className="btn" onClick={() => setStatsFor(c.id)} aria-pressed={activeStatsId === c.id}>View stats</button>
-                      <button type="button" className="btn" onClick={() => disconnectStats(c)}>Stop stats</button>
-                    </>
-                  ) : (
-                    <button type="button" className="btn btn-primary" onClick={() => connect(c)} disabled={busy === c.id}>
-                      {busy === c.id ? 'Opening…' : 'Connect stats'}
-                    </button>
-                  )
+                  <>
+                    <button type="button" className={`btn${activeStatsId === c.id ? ' btn-primary' : ''}`} onClick={() => { setStatsFor(c.id); document.getElementById('stats')?.scrollIntoView({ behavior: 'smooth' }); }}>View stats</button>
+                    {c.connected ? (
+                      <button type="button" className="btn" onClick={() => disconnectStats(c)} title="Stop reading private analytics">Stop analytics</button>
+                    ) : (
+                      <button type="button" className="btn" onClick={() => connect(c)} disabled={busy === c.id} title="Sign in as the channel owner for daily views and engagement">
+                        {busy === c.id ? 'Opening…' : 'Connect analytics'}
+                      </button>
+                    )}
+                  </>
                 ) : <span className="muted small" style={{ flex: 1 }}>Saved as a link</span>}
                 <button type="button" className="icon-btn" aria-label={`Edit ${c.name}`} title="Edit" onClick={() => setEditing(c)}><Icon name="edit" size={17} /></button>
                 <button type="button" className="icon-btn" aria-label={`Remove ${c.name}`} title="Remove" onClick={() => remove(c)}><Icon name="trash" size={17} /></button>
@@ -160,22 +159,56 @@ export function Creator() {
         </div>
       </section>
 
-      {connected.length ? (
-        <section aria-labelledby="stats" className="stack" style={{ gap: 14 }}>
+      {active ? (
+        <section aria-labelledby="stats" id="stats" className="stack" style={{ gap: 14, scrollMarginTop: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <h2 id="stats" className="section-title">Channel stats <span className="am">· ስታቲስቲክስ</span></h2>
-            {connected.length > 1 ? (
+            <h2 className="section-title" id="stats-title">Channel stats <span className="am">· ስታቲስቲክስ</span></h2>
+            {youtubeChannels.length > 1 ? (
               <label className="field" style={{ flexDirection: 'row', alignItems: 'center', fontWeight: 400 }}>
                 <span className="muted">Channel</span>
-                <select className="select" style={{ width: 'auto' }} value={activeStatsId ?? ''} onChange={(e) => setStatsFor(e.target.value)}>
-                  {connected.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <select className="select" style={{ width: 'auto' }} value={active.id} onChange={(e) => setStatsFor(e.target.value)}>
+                  {youtubeChannels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
             ) : null}
           </div>
-          {statsQ.data ? <YouTubeDashboard stats={statsQ.data} onRefresh={() => void statsQ.reload()} />
-            : statsQ.error ? <div className="banner error">Could not load stats: {statsQ.error}</div>
-              : <div className="card card-pad muted">Loading stats…</div>}
+
+          {config.demoMode ? (
+            <div className="demo-warning" role="note">
+              <strong>Demo mode: these are sample numbers, not your channel.</strong>
+              <span>To see real numbers for {active.name}, run the backend with <code>YOUTUBE_API_KEY</code> set and start the app with <code>VITE_DEMO_MODE=false</code>.</span>
+            </div>
+          ) : null}
+
+          {publicReady ? (
+            publicQ.data ? <PublicStatsPanel stats={publicQ.data} url={active.url} demo={config.demoMode} onRefresh={() => void publicQ.reload()} />
+              : publicQ.error ? <div className="banner error">{publicQ.error}</div>
+                : <div className="card card-pad muted">Reading {active.name} from YouTube…</div>
+          ) : (
+            <div className="card card-pad stack" style={{ gap: 10 }}>
+              <strong>See real numbers for {active.name}</strong>
+              <span className="muted">Add a free YouTube Data API key to the backend and Teguwaz reads this channel's public subscribers, views and latest videos straight from its link, with no sign-in needed.</span>
+              <ol className="small" style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>In Google Cloud Console, enable <strong>YouTube Data API v3</strong>.</li>
+                <li>Create an <strong>API key</strong> (Credentials → Create credentials → API key) and restrict it to that API.</li>
+                <li>Set <code>YOUTUBE_API_KEY</code> on the backend and restart.</li>
+              </ol>
+            </div>
+          )}
+
+          {active.connected ? (
+            statsQ.data ? <YouTubeDashboard stats={statsQ.data} demo={config.demoMode} onRefresh={() => void statsQ.reload()} />
+              : statsQ.error ? <div className="banner error">Could not load analytics: {statsQ.error}</div>
+                : <div className="card card-pad muted">Loading analytics…</div>
+          ) : (
+            <div className="card card-pad" style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
+              <div className="stack" style={{ gap: 4, flex: '1 1 320px' }}>
+                <strong>Daily views and engagement</strong>
+                <span className="muted small">Private analytics need the channel owner to sign in with Google once. Each channel connects separately.</span>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={() => connect(active)} disabled={busy === active.id}>Connect analytics</button>
+            </div>
+          )}
         </section>
       ) : channels.length ? (
         <SampleDashboard />
@@ -273,7 +306,7 @@ function ChannelForm({ platforms, existing, onClose, onSaved }: {
   );
 }
 
-function YouTubeDashboard({ stats, onRefresh }: { stats: YouTubeStats; onRefresh: () => void }) {
+function YouTubeDashboard({ stats, onRefresh, demo }: { stats: YouTubeStats; onRefresh: () => void; demo: boolean }) {
   const days = stats.days.map((d) => ({
     label: new Date(d.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
     value: d.views,
@@ -291,7 +324,7 @@ function YouTubeDashboard({ stats, onRefresh }: { stats: YouTubeStats; onRefresh
       {stats.note ? <div className="banner info">{stats.note}</div> : null}
       <div className="dash-grid">
         <section className="card card-pad span-8" aria-labelledby="yt-views">
-          <h2 id="yt-views" className="panel-title">Daily views
+          <h2 id="yt-views" className="panel-title">Daily views {demo ? <span className="sample-ribbon" style={{ marginLeft: 0 }}>Sample</span> : null}
             <span className="muted small" style={{ fontFamily: 'var(--font)', fontWeight: 400 }}>
               {best ? `Best day: ${new Date(best.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · ${fmt(best.views)}` : ''}
               {' '}<button type="button" className="btn" style={{ minHeight: 30, padding: '0 10px', fontSize: 12, marginLeft: 8 }} onClick={onRefresh}>Refresh</button>
@@ -308,11 +341,63 @@ function YouTubeDashboard({ stats, onRefresh }: { stats: YouTubeStats; onRefresh
           ]} />
           <p className="muted small" style={{ margin: '16px 0 0' }}>Last {stats.periodDays} days, from YouTube Analytics.</p>
         </section>
-        <section className="card card-pad span-12" aria-labelledby="yt-places">
-          <h2 id="yt-places" className="panel-title">Views by place <span className="sample-ribbon">Example · link videos to memories to see yours</span></h2>
-          <RankedBars items={SAMPLE_PLACES.map((p) => ({ key: p.place, label: <>{p.place} <span className="am muted small">{p.am}</span></>, value: p.views }))} />
-        </section>
       </div>
+    </>
+  );
+}
+
+function PublicStatsPanel({ stats, url, demo, onRefresh }: { stats: PublicStats; url: string; demo: boolean; onRefresh: () => void }) {
+  const videos = stats.latestVideos;
+  const avg = videos.length ? Math.round(videos.reduce((n, v) => n + v.views, 0) / videos.length) : 0;
+  const top = [...videos].sort((a, b) => b.views - a.views)[0];
+  const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  return (
+    <>
+      <section className="card" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }} aria-label="Channel">
+        {stats.thumbnailUrl ? <img src={stats.thumbnailUrl} alt="" width={56} height={56} style={{ borderRadius: '50%', flex: 'none' }} referrerPolicy="no-referrer" />
+          : <BrandMark platform="youtube" size={56} />}
+        <div className="stack" style={{ gap: 2, flex: '1 1 240px' }}>
+          <strong style={{ fontSize: 18 }}>{stats.title} {demo ? <span className="sample-ribbon">Sample</span> : <span className="tag green">Live from YouTube</span>}</strong>
+          <span className="muted small">{stats.handle ?? ''}{stats.createdAt ? ` · on YouTube since ${date(stats.createdAt)}` : ''} · updated {new Date(stats.fetchedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <a className="btn" href={url} target="_blank" rel="noopener noreferrer"><Icon name="link" size={16} />Open on YouTube</a>
+        <button type="button" className="btn" onClick={onRefresh}>Refresh</button>
+      </section>
+      <section className="kpi-strip" aria-label="Public totals">
+        <Kpi label="Subscribers" value={stats.subscribersHidden ? 'Hidden' : fmt(stats.subscribers)} note={stats.subscribersHidden ? 'The channel hides this count' : undefined} />
+        <Kpi label="Total views" value={fmt(stats.totalViews)} />
+        <Kpi label="Videos" value={fmt(stats.videoCount)} />
+        <Kpi label={`Average views, last ${videos.length} videos`} value={fmt(avg)} note={top ? `Top: ${fmt(top.views)}` : undefined} />
+      </section>
+      {videos.length ? (
+        <div className="dash-grid">
+          <section className="card card-pad span-5" aria-labelledby="lv-rank">
+            <h2 id="lv-rank" className="panel-title">Latest videos by views</h2>
+            <RankedBars items={videos.map((v) => ({ key: v.id, label: v.title, value: v.views }))} />
+          </section>
+          <section className="card card-pad span-7" aria-labelledby="lv-table">
+            <h2 id="lv-table" className="panel-title">Latest uploads <span className="am">· የቅርብ ቪዲዮዎች</span></h2>
+            <div className="table-wrap">
+              <table className="data" style={{ minWidth: 520 }}>
+                <thead><tr><th>Video</th><th>Published</th><th style={{ textAlign: 'right' }}>Views</th><th style={{ textAlign: 'right' }}>Likes</th><th style={{ textAlign: 'right' }}>Comments</th></tr></thead>
+                <tbody>
+                  {videos.map((v) => (
+                    <tr key={v.id}>
+                      <td>
+                        {demo ? v.title : <a href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noopener noreferrer">{v.title}</a>}
+                      </td>
+                      <td className="small" style={{ whiteSpace: 'nowrap' }}>{date(v.publishedAt)}</td>
+                      <td style={{ textAlign: 'right' }}>{fmt(v.views)}</td>
+                      <td style={{ textAlign: 'right' }}>{fmt(v.likes)}</td>
+                      <td style={{ textAlign: 'right' }}>{fmt(v.comments)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      ) : <div className="card card-pad muted">This channel has no public videos yet.</div>}
     </>
   );
 }
@@ -327,7 +412,7 @@ function SampleDashboard() {
           <h2 id="sample" className="section-title">Stats you can unlock <span className="am">· ምሳሌ</span></h2>
           <span className="sample-ribbon">Sample data</span>
         </div>
-        <p className="muted" style={{ margin: 0 }}>Use "Connect stats" on a YouTube channel to see its real subscribers, daily views and engagement here.</p>
+        <p className="muted" style={{ margin: 0 }}>Add a YouTube channel to see its real subscribers, views and latest videos here.</p>
         <div className="dash-grid">
           <div className="span-8"><BarChart data={sample} title="Sample daily views" height={180} /></div>
           <div className="span-4"><SplitBar label="Sample engagement" parts={[{ label: 'Likes', value: 620, color: SERIES[0] }, { label: 'Comments', value: 110, color: SERIES[1] }, { label: 'Shares', value: 85, color: SERIES[2] }]} /></div>

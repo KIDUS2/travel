@@ -283,8 +283,8 @@ table.data tr:last-child td { border-bottom: 0; }
 .channel-card { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .channel-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--green-600); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .channel-link:hover { text-decoration: underline; }
-.channel-actions { display: flex; gap: 8px; align-items: center; margin-top: auto; }
-.channel-actions .btn { min-height: 40px; padding: 0 12px; font-size: 14px; }
+.channel-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: auto; }
+.channel-actions .btn { min-height: 40px; padding: 0 12px; font-size: 14px; white-space: nowrap; }
 .channel-actions .btn:first-child { flex: 1; }
 .channel-actions .icon-btn { width: 40px; height: 40px; flex: none; }
 .channel-add { border: 2px dashed var(--line-2); border-radius: var(--radius); background: rgba(255,255,255,0.5); min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--green-600); font-weight: 700; cursor: pointer; font-size: 15px; }
@@ -293,3 +293,5 @@ table.data tr:last-child td { border-bottom: 0; }
 .platform-option { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 48px; border: 2px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; font-size: 13px; font-weight: 600; text-align: left; }
 .platform-option[aria-checked='true'] { border-color: var(--green-600); background: var(--green-50); }
 .platform-option:disabled { opacity: 0.4; cursor: not-allowed; }
+.demo-warning { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: #FFF3CD; border: 2px solid #E5C400; color: #4A3A12; font-size: 14px; }
+.demo-warning code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }

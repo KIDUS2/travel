@@ -155,7 +155,33 @@ export interface PlatformInfo {
   name: string;
   statsSupported: boolean;
   statsAvailable: boolean;
+  /** Real public stats from the channel link (server has a YouTube API key). */
+  publicStatsAvailable: boolean;
   setup: string;
+}
+
+export interface PublicVideo {
+  id: string;
+  title: string;
+  publishedAt: string | null;
+  thumbnailUrl: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+}
+
+export interface PublicStats {
+  channelId: string;
+  title: string;
+  handle: string | null;
+  thumbnailUrl: string | null;
+  subscribers: number;
+  subscribersHidden: boolean;
+  totalViews: number;
+  videoCount: number;
+  createdAt: string | null;
+  latestVideos: PublicVideo[];
+  fetchedAt: string;
 }
 
 /** A channel the user added by name and link; YouTube ones can be connected for stats. */
