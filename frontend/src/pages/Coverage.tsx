@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api } from '../api/api';
+import { pinsFromMemories } from '../components/EthiopiaMap';
 import { Icon } from '../components/Icon';
+import { WorldCoverageMap, type MapScope } from '../components/WorldCoverageMap';
 import { PageHeader } from '../components/PageHeader';
 import { computeCoverage } from '../lib/coverage';
 import { ETHIOPIA_REGIONS } from '../lib/regions';
@@ -19,30 +21,52 @@ const TILE_LAYOUT: (string | null)[] = [
 // Bucket list is stored per traveler in a later feature; these two are the design's examples.
 const BUCKET = new Set(['ET-HA', 'ET-SI']);
 
+/** ISO alpha-2 → numeric id used by Natural Earth / world-atlas. Extend as countries are added. */
+const COUNTRY_NUMERIC: Record<string, string> = { ET: '231', KE: '404', DJ: '262', SO: '706', SD: '729', SS: '728', ER: '232' };
+
 export function Coverage() {
-  const [scope, setScope] = useState<'ET' | 'AF' | 'WORLD' | 'HERITAGE'>('ET');
+  const [scope, setScope] = useState<MapScope>('world');
   const { data, error } = useAsync(() => api.listMemories({ size: 100 }), []);
-  const cov = computeCoverage(data?.items ?? []);
+  const memories = data?.items ?? [];
+  const cov = computeCoverage(memories);
   const top = [...cov.placesByRegion].sort((a, b) => b[1] - a[1])[0]?.[0];
+
+  const visitedCountryIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of memories) {
+      const alpha2 = m.regionCode?.slice(0, 2).toUpperCase();
+      if (alpha2 && COUNTRY_NUMERIC[alpha2]) ids.add(COUNTRY_NUMERIC[alpha2]);
+    }
+    return ids;
+  }, [memories]);
+
+  const pins = useMemo(() => pinsFromMemories(memories).map((p) => ({ lat: p.lat, lng: p.lng, label: p.label })), [memories]);
 
   return (
     <>
-      <PageHeader title="Coverage map" am="የጉዞ ካርታ" subtitle="How much of your chosen area you've explored."
+      <PageHeader title="Coverage map" am="የጉዞ ካርታ" subtitle="Where you've been, on a real map."
         actions={
-          <div className="segmented" role="group" aria-label="Scope">
-            <button type="button" aria-pressed={scope === 'ET'} onClick={() => setScope('ET')}>Ethiopia · <span className="am">ኢትዮጵያ</span></button>
-            <button type="button" aria-pressed={scope === 'AF'} onClick={() => setScope('AF')}>Africa</button>
-            <button type="button" aria-pressed={scope === 'WORLD'} onClick={() => setScope('WORLD')}>World</button>
-            <button type="button" aria-pressed={scope === 'HERITAGE'} onClick={() => setScope('HERITAGE')}>Heritage list</button>
+          <div className="segmented" role="group" aria-label="Map scope">
+            <button type="button" aria-pressed={scope === 'world'} onClick={() => setScope('world')}>World · <span className="am">ዓለም</span></button>
+            <button type="button" aria-pressed={scope === 'africa'} onClick={() => setScope('africa')}>Africa · <span className="am">አፍሪካ</span></button>
+            <button type="button" aria-pressed={scope === 'ethiopia'} onClick={() => setScope('ethiopia')}>Ethiopia · <span className="am">ኢትዮጵያ</span></button>
           </div>
         } />
 
       {error ? <div className="banner error">{error}</div> : null}
-      {scope !== 'ET' ? <div className="banner info">Africa, World and the heritage list come with the global launch. Showing Ethiopia for now.</div> : null}
+
+      <section aria-labelledby="mapcard" className="card card-lg" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="tibeb" />
+        <div className="stack" style={{ padding: 24, gap: 14 }}>
+          <h2 id="mapcard" className="section-title">
+            {scope === 'world' ? <>World map <span className="am">· የዓለም ካርታ</span></> : scope === 'africa' ? <>Africa <span className="am">· አፍሪካ</span></> : <>Ethiopia <span className="am">· ኢትዮጵያ</span></>}
+          </h2>
+          <WorldCoverageMap scope={scope} visitedCountryIds={visitedCountryIds} visitedRegionCodes={cov.visited} pins={pins} />
+        </div>
+      </section>
 
       <div className="row">
         <section aria-labelledby="maph" className="card card-lg col-main" style={{ overflow: 'hidden', padding: 0 }}>
-          <div className="tibeb" />
           <div className="stack" style={{ padding: 24, gap: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <h2 id="maph" className="section-title">Regions of Ethiopia <span className="am">· ክልሎች</span></h2>
