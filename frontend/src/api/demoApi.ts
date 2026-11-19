@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { Book, Media, Memory, MemoryInput, Trip } from './types';
+import type { Book, BookPhoto, Media, Memory, MemoryInput, Trip } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -76,6 +76,7 @@ function recount() {
 recount();
 
 let books: Book[] = [];
+const bookPhotos = new Map<string, BookPhoto[]>();
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), 120));
 
@@ -165,6 +166,18 @@ export const demoApi: TeguwazApi = {
   },
   deleteBook: async (id) => {
     books = books.filter((b) => b.id !== id);
+    bookPhotos.delete(id);
+    return delay(undefined);
+  },
+  listBookPhotos: async (bookId) => delay(bookPhotos.get(bookId) ?? []),
+  uploadBookPhoto: async (bookId, file) => {
+    // Object URLs keep the original photo in this browser tab (demo only; nothing is uploaded).
+    const photo: BookPhoto = { id: uid(), contentType: file.type, sizeBytes: file.size, url: URL.createObjectURL(file) };
+    bookPhotos.set(bookId, [...(bookPhotos.get(bookId) ?? []), photo]);
+    return new Promise((r) => setTimeout(() => r(photo), 300));
+  },
+  deleteBookPhoto: async (bookId, photoId) => {
+    bookPhotos.set(bookId, (bookPhotos.get(bookId) ?? []).filter((p) => p.id !== photoId));
     return delay(undefined);
   },
 };

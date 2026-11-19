@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import type { BookPage, BookSettings } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { WorldCoverageMap, type CoveragePin } from '../../components/WorldCoverageMap';
@@ -27,6 +27,9 @@ interface Props {
   onSlotSelect?: (slot: string) => void;
   onText?: (slot: string, value: string) => void;
   onPhoto?: (slot: string, mediaId: string | null) => void;
+  /** A file from the device was picked or dropped onto a photo box. */
+  onUpload?: (slot: string, file: File) => void;
+  uploadingSlot?: string | null;
 }
 
 const BG: Record<BookPage['background'], { background: string; color: string; muted: string; accent: string }> = {
@@ -165,45 +168,89 @@ function LayoutBody(p: Props & { theme: typeof BG.white; innerHeight: number }) 
   }
 }
 
-function PhotoSlot({ slot, page, ctx, editable, selectedSlot, onSlotSelect, onPhoto, onSelect, style }: Props & { slot: string; style?: CSSProperties }) {
+function PhotoSlot({ slot, page, ctx, editable, selectedSlot, onSlotSelect, onPhoto, onUpload, onSelect, uploadingSlot, style }: Props & { slot: string; style?: CSSProperties }) {
   const mediaId = page.slots[slot];
   const url = ctx.photoUrl(mediaId);
   const active = editable && selectedSlot === slot;
+  const uploading = editable && uploadingSlot === slot;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+
+  function accepts(e: DragEvent) {
+    return e.dataTransfer.types.includes(MEDIA_MIME) || e.dataTransfer.types.includes('Files');
+  }
 
   function onDrop(e: DragEvent) {
+    setOver(false);
     const id = e.dataTransfer.getData(MEDIA_MIME);
-    if (!id) return;
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith('image/'));
+    if (!id && !file) return;
     e.preventDefault();
     onSelect?.();
-    onPhoto?.(slot, id);
+    onSlotSelect?.(slot);
+    if (id) onPhoto?.(slot, id);
+    else if (file) onUpload?.(slot, file);
+  }
+
+  function pickFile(e: React.MouseEvent) {
+    e.stopPropagation();
+    onSelect?.();
+    onSlotSelect?.(slot);
+    fileRef.current?.click();
   }
 
   return (
     <div
       onClick={(e) => { if (!editable) return; e.stopPropagation(); onSelect?.(); onSlotSelect?.(slot); }}
-      onDragOver={editable ? (e) => { if (e.dataTransfer.types.includes(MEDIA_MIME)) e.preventDefault(); } : undefined}
+      onDragOver={editable ? (e) => { if (accepts(e)) { e.preventDefault(); setOver(true); } } : undefined}
+      onDragLeave={editable ? () => setOver(false) : undefined}
       onDrop={editable ? onDrop : undefined}
-      role={editable ? 'button' : undefined}
-      aria-label={editable ? (url ? 'Photo box: tap to replace' : 'Empty photo box: drop a photo here') : undefined}
+      role={editable ? 'group' : undefined}
+      aria-label={editable ? (url ? 'Photo box. Press Enter to select, then replace or remove' : 'Empty photo box') : undefined}
       tabIndex={editable ? 0 : undefined}
-      onKeyDown={editable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(); onSlotSelect?.(slot); } } : undefined}
+      onKeyDown={editable ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect?.(); onSlotSelect?.(slot); } } : undefined}
       style={{
         position: 'relative', background: url ? `#D9CFBC url("${url}") center / cover no-repeat` : '#EDE6D6',
-        outline: active ? '3px solid #FCDD09' : undefined, outlineOffset: -3,
+        outline: over ? '3px dashed #06742A' : active ? '3px solid #FCDD09' : undefined, outlineOffset: -3,
         display: 'flex', alignItems: 'center', justifyContent: 'center', ...style,
       }}
     >
-      {!url ? (
-        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#8A7D63', fontSize: 12, textAlign: 'center', padding: 8 }}>
-          <Icon name="photo" size={26} />
-          {editable ? 'Drop a photo here' : ''}
+      {editable ? (
+        <input ref={fileRef} type="file" accept="image/*" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload?.(slot, f); e.target.value = ''; }} />
+      ) : null}
+
+      {!url && !uploading ? (
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: '#8A7D63', fontSize: 13, textAlign: 'center', padding: 10 }}>
+          <Icon name="photo" size={28} />
+          {editable ? (
+            <>
+              <span>Drop a photo here</span>
+              <span style={{ fontSize: 11 }}>or</span>
+              <button type="button" onClick={pickFile}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, border: 0, borderRadius: 999, padding: '8px 14px', background: '#06742A', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <Icon name="upload" size={15} />Upload from device
+              </button>
+            </>
+          ) : null}
         </span>
       ) : null}
-      {editable && url && active ? (
-        <button type="button" aria-label="Remove photo" onClick={(e) => { e.stopPropagation(); onPhoto?.(slot, null); }}
-          style={{ position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: '50%', border: 0, background: 'rgba(29,26,20,0.8)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-          <Icon name="x" size={16} />
-        </button>
+
+      {uploading ? (
+        <span role="status" style={{ background: 'rgba(29,26,20,0.75)', color: '#fff', fontSize: 13, padding: '8px 14px', borderRadius: 999 }}>Uploading…</span>
+      ) : null}
+
+      {editable && url && active && !uploading ? (
+        <span style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+          <button type="button" aria-label="Replace with a photo from this device" title="Replace from device" onClick={pickFile}
+            style={{ height: 32, borderRadius: 999, border: 0, background: 'rgba(29,26,20,0.8)', color: '#fff', display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>
+            <Icon name="upload" size={15} />Replace
+          </button>
+          <button type="button" aria-label="Remove photo" onClick={(e) => { e.stopPropagation(); onPhoto?.(slot, null); }}
+            style={{ width: 32, height: 32, borderRadius: '50%', border: 0, background: 'rgba(29,26,20,0.8)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            <Icon name="x" size={16} />
+          </button>
+        </span>
       ) : null}
     </div>
   );

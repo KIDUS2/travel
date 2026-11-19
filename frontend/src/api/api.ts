@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { Book, BookInput, BookSummary, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { Book, BookInput, BookPhoto, BookSummary, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -20,6 +20,9 @@ export interface TeguwazApi {
   createBook(input: BookInput): Promise<Book>;
   saveBook(id: string, input: BookInput): Promise<Book>;
   deleteBook(id: string): Promise<void>;
+  listBookPhotos(bookId: string): Promise<BookPhoto[]>;
+  uploadBookPhoto(bookId: string, file: File): Promise<BookPhoto>;
+  deleteBookPhoto(bookId: string, photoId: string): Promise<void>;
 }
 
 const httpApi: TeguwazApi = {
@@ -48,6 +51,13 @@ const httpApi: TeguwazApi = {
   createBook: (input) => request('/api/books', { method: 'POST', body: JSON.stringify(input) }),
   saveBook: (id, input) => request(`/api/books/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   deleteBook: (id) => request(`/api/books/${id}`, { method: 'DELETE' }),
+  listBookPhotos: (bookId) => request(`/api/books/${bookId}/photos`),
+  uploadBookPhoto: (bookId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request(`/api/books/${bookId}/photos`, { method: 'POST', body: form });
+  },
+  deleteBookPhoto: (bookId, photoId) => request(`/api/books/${bookId}/photos/${photoId}`, { method: 'DELETE' }),
 };
 
 export const api: TeguwazApi = config.demoMode ? demoApi : httpApi;

@@ -91,9 +91,11 @@ Media is stored in a private MinIO bucket; responses carry short-lived signed UR
 | Method | Path | |
 |---|---|---|
 | GET / POST | `/api/books` | List (with page counts) / create |
-| GET / PUT / DELETE | `/api/books/{id}` | The editor autosaves the whole book with `PUT` |
+| GET / PUT / DELETE | `/api/books/{id}` | The editor autosaves the whole book with `PUT`; delete also removes uploaded photos |
+| GET / POST | `/api/books/{id}/photos` | Photos uploaded from the device into the book (multipart `file`, images only) |
+| DELETE | `/api/books/{id}/photos/{photoId}` | |
 
-A book's `pages` is a JSON array. Each page has a `layout` (`cover`, `title`, `full-photo`, `photo-text`, `two-photos`, `grid-3`, `story`, `map`), a `background` (`white`, `cream`, `green`, `tibeb`) and `slots`: text, or a media id for photo boxes. At most 200 pages per book.
+A book's `pages` is a JSON array. Each page has a `layout` (`cover`, `title`, `full-photo`, `photo-text`, `two-photos`, `grid-3`, `story`, `map`), a `background` (`white`, `cream`, `green`, `tibeb`) and `slots`: text, or a photo id for photo boxes (a memory's media id or a book photo id). At most 200 pages per book.
 
 ## Tests
 

@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { Icon } from '../../components/Icon';
 import { PageHeader } from '../../components/PageHeader';
 import { useAsync } from '../../lib/useAsync';
-import { BOOK_TYPES, DEFAULT_SETTINGS, SIZE_LABEL, autoGenerate } from './layouts';
+import { BOOK_TYPES, DEFAULT_SETTINGS, SIZE_LABEL, autoGenerate, mapPageText } from './layouts';
 
 export function Books() {
   const navigate = useNavigate();
@@ -32,8 +32,10 @@ export function Books() {
       const trip = trips.find((t) => t.id === tripId);
       const settings: BookSettings = { ...DEFAULT_SETTINGS, size: chosen.size, cover, includeMap };
       const title = trip?.name ?? 'My Ethiopia';
-      const memories = autoFill ? (await api.listMemories({ tripId: tripId || undefined, size: 100 })).items : [];
-      const pages = autoGenerate({ title, travelerName: name, trip, memories, settings });
+      const tripMemories = (await api.listMemories({ tripId: tripId || undefined, size: 100 })).items;
+      const pages = autoGenerate({ title, travelerName: name, trip, memories: autoFill ? tripMemories : [], settings })
+        // The map page always reflects the trip, even in a blank book.
+        .map((p) => (p.layout === 'map' ? { ...p, slots: mapPageText(tripMemories) } : p));
       const book = await api.createBook({ title, tripId: tripId || null, bookType: type, settings, pages });
       navigate(`/books/${book.id}`);
     } catch (e) {

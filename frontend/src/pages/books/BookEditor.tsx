@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api/api';
-import type { Book, BookPage, BookSettings, Memory, PageBackground, PageLayout } from '../../api/types';
+import type { Book, BookPage, BookPhoto, BookSettings, Memory, PageBackground, PageLayout } from '../../api/types';
 import { pinsFromMemories } from '../../components/EthiopiaMap';
 import { Icon } from '../../components/Icon';
 import { computeCoverage } from '../../lib/coverage';
@@ -20,6 +20,12 @@ export function BookEditor() {
   const { id = '' } = useParams();
   const [book, setBook] = useState<Book | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [bookPhotos, setBookPhotos] = useState<BookPhoto[]>([]);
+  const [uploading, setUploading] = useState<{ pageId: string; slot: string } | null>(null);
+  const [panelUploads, setPanelUploads] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [panelDragOver, setPanelDragOver] = useState(false);
+  const panelFileRef = useRef<HTMLInputElement>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const [slot, setSlot] = useState<string | null>(null);
@@ -32,8 +38,8 @@ export function BookEditor() {
 
   // Load the book and every memory (photos from other trips can be added too).
   useEffect(() => {
-    Promise.all([api.getBook(id), api.listMemories({ size: 100 })])
-      .then(([b, page]) => { setBook(b); setMemories(page.items); })
+    Promise.all([api.getBook(id), api.listMemories({ size: 100 }), api.listBookPhotos(id)])
+      .then(([b, page, photos]) => { setBook(b); setMemories(page.items); setBookPhotos(photos); })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Could not open this book'));
   }, [id]);
 
@@ -73,20 +79,48 @@ export function BookEditor() {
     return map;
   }, [memories]);
 
+  const photoUrls = useMemo(() => {
+    const map = new Map<string, string>();
+    mediaIndex.forEach((v, k) => map.set(k, v.url));
+    for (const p of bookPhotos) map.set(p.id, p.url);
+    return map;
+  }, [mediaIndex, bookPhotos]);
+
   const bookMemories = useMemo(
     () => (book?.tripId ? memories.filter((m) => m.tripId === book.tripId) : memories),
     [memories, book?.tripId],
   );
 
   const ctx: PageContext = useMemo(() => ({
-    photoUrl: (mid) => (mid ? mediaIndex.get(mid)?.url : undefined),
+    photoUrl: (mid) => (mid ? photoUrls.get(mid) : undefined),
     mapPins: pinsFromMemories(bookMemories).map((p) => ({ lat: p.lat, lng: p.lng, label: p.label })),
     visitedRegions: computeCoverage(bookMemories).visited,
-  }), [mediaIndex, bookMemories]);
+  }), [photoUrls, bookMemories]);
 
   const update = useCallback((fn: (b: Book) => Book) => setBook((b) => (b ? fn(b) : b)), []);
   const updatePage = useCallback((index: number, fn: (p: BookPage) => BookPage) =>
     update((b) => ({ ...b, pages: b.pages.map((p, i) => (i === index ? fn(p) : p)) })), [update]);
+
+  /** Uploads one photo from the device into the book; returns it, or null on failure. */
+  const uploadPhoto = useCallback(async (file: File): Promise<BookPhoto | null> => {
+    setUploadError(null);
+    if (!file.type.startsWith('image/')) {
+      setUploadError(`"${file.name}" is not a photo.`);
+      return null;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      setUploadError(`"${file.name}" is larger than 30 MB.`);
+      return null;
+    }
+    try {
+      const photo = await api.uploadBookPhoto(id, file);
+      setBookPhotos((list) => [...list, photo]);
+      return photo;
+    } catch (e) {
+      setUploadError(e instanceof Error ? `Upload failed: ${e.message}` : 'Upload failed. Check your connection.');
+      return null;
+    }
+  }, [id]);
 
   if (loadError) return <div className="main"><div className="banner error">{loadError}</div><Link to="/books">Back to my books</Link></div>;
   if (!book) return <div className="main"><p className="muted">Opening your book…</p></div>;
@@ -104,6 +138,32 @@ export function BookEditor() {
   const photoMemories = photoScope === 'trip' ? bookMemories : memories;
 
   function selectPage(i: number) { setSelected(i); setSlot(null); }
+
+  async function uploadIntoSlot(pageIndex: number, slotName: string, file: File) {
+    const pageId = pages[pageIndex].id;
+    setUploading({ pageId, slot: slotName });
+    const photo = await uploadPhoto(file);
+    setUploading(null);
+    if (photo) {
+      update((b) => ({ ...b, pages: b.pages.map((p) => (p.id === pageId ? { ...p, slots: { ...p.slots, [slotName]: photo.id } } : p)) }));
+    }
+  }
+
+  async function uploadToPanel(files: FileList | File[]) {
+    const list = Array.from(files);
+    setPanelUploads((n) => n + list.length);
+    for (const f of list) {
+      await uploadPhoto(f);
+      setPanelUploads((n) => n - 1);
+    }
+  }
+
+  async function removeBookPhoto(p: BookPhoto) {
+    if (usedMedia.has(p.id) && !window.confirm('This photo is on a page. Remove it from the book anyway?')) return;
+    await api.deleteBookPhoto(id, p.id);
+    setBookPhotos((list) => list.filter((x) => x.id !== p.id));
+    update((b) => ({ ...b, pages: b.pages.map((pg) => ({ ...pg, slots: Object.fromEntries(Object.entries(pg.slots).filter(([, v]) => v !== p.id)) })) }));
+  }
 
   function placePhoto(mediaId: string) {
     if (!current) return;
@@ -185,7 +245,40 @@ export function BookEditor() {
           <div className="panel-content">
             {panel === 'photos' ? (
               <>
+                <div
+                  className={`upload-zone${panelDragOver ? ' over' : ''}`}
+                  onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setPanelDragOver(true); } }}
+                  onDragLeave={() => setPanelDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setPanelDragOver(false); void uploadToPanel(e.dataTransfer.files); }}
+                >
+                  <input ref={panelFileRef} type="file" accept="image/*" multiple hidden
+                    onChange={(e) => { if (e.target.files?.length) void uploadToPanel(e.target.files); e.target.value = ''; }} />
+                  <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={() => panelFileRef.current?.click()}>
+                    <Icon name="upload" size={18} />Upload from device
+                  </button>
+                  <span className="small muted">or drop photos from your computer here</span>
+                  {panelUploads > 0 ? <span className="small" role="status" style={{ fontWeight: 600 }}>Uploading {panelUploads} photo{panelUploads === 1 ? '' : 's'}…</span> : null}
+                </div>
+                {uploadError ? <div className="banner error" role="alert">{uploadError}</div> : null}
                 <p className="panel-hint">Drag a photo onto a photo box, or tap a box on the page and then tap a photo.</p>
+
+                {bookPhotos.length ? (
+                  <div className="stack" style={{ gap: 6 }}>
+                    <span className="small" style={{ fontWeight: 600 }}>Uploaded to this book</span>
+                    <div className="photo-grid">
+                      {bookPhotos.map((x) => (
+                        <div key={x.id} style={{ position: 'relative' }}>
+                          <button type="button" className="photo-thumb" draggable style={{ backgroundImage: `url("${x.url}")`, width: '100%' }}
+                            onDragStart={(e) => { e.dataTransfer.setData(MEDIA_MIME, x.id); e.dataTransfer.effectAllowed = 'copy'; }}
+                            onClick={() => placePhoto(x.id)} aria-label="Place uploaded photo">
+                            {usedMedia.has(x.id) ? <span className="used" aria-label="Used in book">✓</span> : null}
+                          </button>
+                          <button type="button" className="thumb-remove" aria-label="Remove uploaded photo from the book" onClick={() => removeBookPhoto(x)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="segmented" style={{ background: 'var(--sand)', border: 0 }}>
                   <button type="button" aria-pressed={photoScope === 'trip'} onClick={() => setPhotoScope('trip')}>{book.tripId ? 'This trip' : 'All'}</button>
                   <button type="button" aria-pressed={photoScope === 'all'} onClick={() => setPhotoScope('all')}>All memories</button>
@@ -311,6 +404,8 @@ export function BookEditor() {
                   onSelect={() => { if (i !== selected) { setSelected(i); setSlot(null); } }}
                   onSlotSelect={(s) => { setSlot(s); if (layoutDef(pages[i].layout).photos.includes(s)) setPanel('photos'); }}
                   onText={(s, v) => updatePage(i, (p) => ({ ...p, slots: { ...p.slots, [s]: v } }))}
+                  uploadingSlot={uploading && uploading.pageId === pages[i].id ? uploading.slot : null}
+                  onUpload={(s, file) => { void uploadIntoSlot(i, s, file); }}
                   onPhoto={(s, mid) => updatePage(i, (p) => {
                     const slots = { ...p.slots };
                     if (mid) slots[s] = mid; else delete slots[s];

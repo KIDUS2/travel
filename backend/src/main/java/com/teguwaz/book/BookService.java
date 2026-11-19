@@ -29,11 +29,13 @@ public class BookService {
 
     private final BookRepository books;
     private final TripRepository trips;
+    private final BookMediaService photos;
     private final ObjectMapper mapper;
 
-    public BookService(BookRepository books, TripRepository trips, ObjectMapper mapper) {
+    public BookService(BookRepository books, TripRepository trips, BookMediaService photos, ObjectMapper mapper) {
         this.books = books;
         this.trips = trips;
+        this.photos = photos;
         this.mapper = mapper;
     }
 
@@ -67,7 +69,8 @@ public class BookService {
 
     @Transactional
     public Mono<Void> delete(UUID userId, UUID bookId) {
-        return find(userId, bookId).flatMap(books::delete);
+        return find(userId, bookId)
+                .flatMap(b -> photos.deleteAllForBook(b.id()).then(books.delete(b)));
     }
 
     private Mono<Book> find(UUID userId, UUID bookId) {

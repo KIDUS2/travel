@@ -33,7 +33,7 @@ class BookServiceTest {
     void setUp() {
         books = mock(BookRepository.class);
         trips = mock(TripRepository.class);
-        service = new BookService(books, trips, mapper);
+        service = new BookService(books, trips, mock(BookMediaService.class), mapper);
         when(books.save(any())).thenAnswer(inv -> {
             Book b = inv.getArgument(0);
             return Mono.just(new Book(UUID.randomUUID(), b.userId(), b.tripId(), b.title(), b.bookType(),

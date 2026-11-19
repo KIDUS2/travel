@@ -132,3 +132,11 @@ export interface BookInput {
   settings: BookSettings;
   pages: BookPage[];
 }
+
+/** A photo uploaded from the device straight into a book. */
+export interface BookPhoto {
+  id: string;
+  contentType: string;
+  sizeBytes: number;
+  url: string;
+}
