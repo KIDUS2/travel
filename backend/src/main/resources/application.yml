@@ -62,8 +62,41 @@ teguwaz:
       # Free key from Google Cloud (YouTube Data API v3): real public stats for any channel link
       api-key: ${YOUTUBE_API_KEY:}
 
+  # Printed books. Prices in Ethiopian birr: set these to your printing partner's real prices.
+  printing:
+    min-pages: 20
+    max-pages: 120
+    pickup-address: ${PRINT_PICKUP_ADDRESS:Pickup point in Addis Ababa (set PRINT_PICKUP_ADDRESS)}
+    base-price:
+      "[a4-landscape]": 1800
+      "[a4-portrait]": 1800
+      "[a5-portrait]": 950
+      "[square]": 1500
+    extra-page-price:
+      "[a4-landscape]": 40
+      "[a4-portrait]": 40
+      "[a5-portrait]": 25
+      "[square]": 35
+    finish-price:
+      "[hard]": 600
+      "[soft]": 0
+      "[lay]": 900
+    delivery-fee:
+      "[PICKUP]": 0
+      "[ADDIS]": 250
+      "[REGIONAL]": 600
+
+  payments:
+    chapa:
+      # Secret key from dashboard.chapa.co (CHASECK_TEST-... for test mode). Empty = ordering shows "not set up".
+      secret-key: ${CHAPA_SECRET_KEY:}
+      base-url: ${CHAPA_BASE_URL:https://api.chapa.co}
+      # Public URL of this backend; Chapa calls <url>/api/orders/chapa/callback after payment
+      backend-public-url: ${BACKEND_PUBLIC_URL:http://localhost:8080}
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+

@@ -31,6 +31,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/files/**").permitAll()
                         // OAuth providers redirect the browser here; the signed state identifies the user.
                         .pathMatchers(HttpMethod.GET, "/api/channels/oauth/*/callback").permitAll()
+                        // Chapa calls this after a payment; the order is only marked paid after we verify with Chapa.
+                        .pathMatchers("/api/orders/chapa/callback").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().denyAll())
                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))

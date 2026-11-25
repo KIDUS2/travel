@@ -93,8 +93,12 @@ public class AccountService {
         // Channel access tokens are never exported.
         Mono<List<Map<String, Object>>> channelRows = rows("""
                 SELECT platform, name, url, account_name, connected_at, created_at FROM channels WHERE user_id = :id""", userId).collectList();
+        Mono<List<Map<String, Object>>> orderRows = rows("""
+                SELECT id, book_title, size, finish, printed_pages, copies, total_etb, delivery_method, recipient_name, phone, city,
+                       address, status, payment_reference, paid_at, created_at
+                FROM book_orders WHERE user_id = :id ORDER BY created_at""", userId).collectList();
 
-        return Mono.zip(profile, trips, memories, media, books, bookPhotos, channelRows).map(t -> {
+        return Mono.zip(profile, trips, memories, media, books, bookPhotos, channelRows, orderRows).map(t -> {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("exportedAt", Instant.now());
             out.put("about", "Your Teguwaz data. Photo download links expire about an hour after export; export again for fresh links.");
@@ -105,6 +109,7 @@ public class AccountService {
             out.put("books", t.getT5());
             out.put("bookPhotos", t.getT6());
             out.put("channels", t.getT7());
+            out.put("bookOrders", t.getT8());
             return out;
         });
     }
@@ -165,7 +170,12 @@ public class AccountService {
         Mono<Void> revokeChannels = channels.findByUserIdOrderByCreatedAtAsc(id)
                 .concatMap(c -> channelService.delete(id, c.id()).onErrorResume(e -> Mono.empty()))
                 .then();
-        Mono<Void> deleteRow = db.sql("DELETE FROM app_users WHERE id = :id").bind("id", id).fetch().rowsUpdated().then();
+        // Book orders stay as payment records, without personal details.
+        Mono<Void> anonymizeOrders = db.sql("""
+                UPDATE book_orders SET recipient_name = 'Deleted account', phone = '', city = NULL, address = NULL, notes = NULL,
+                       snapshot = '{}'::jsonb, updated_at = now()
+                WHERE user_id = :id""").bind("id", id).fetch().rowsUpdated().then();
+        Mono<Void> deleteRow = anonymizeOrders.then(db.sql("DELETE FROM app_users WHERE id = :id").bind("id", id).fetch().rowsUpdated().then());
 
         return files.flatMap(count -> revokeChannels
                 .then(deleteRow)
