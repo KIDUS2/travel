@@ -61,6 +61,16 @@ teguwaz:
       redirect-uri: ${YOUTUBE_REDIRECT_URI:http://localhost:8080/api/channels/oauth/youtube/callback}
       # Free key from Google Cloud (YouTube Data API v3): real public stats for any channel link
       api-key: ${YOUTUBE_API_KEY:}
+    # TikTok for Developers app with Login Kit + Display API (scopes user.info.basic, user.info.profile, user.info.stats, video.list)
+    tiktok:
+      client-id: ${TIKTOK_CLIENT_KEY:}
+      client-secret: ${TIKTOK_CLIENT_SECRET:}
+      redirect-uri: ${TIKTOK_REDIRECT_URI:http://localhost:8080/api/channels/oauth/tiktok/callback}
+    # Meta app with "Instagram API with Instagram login" (Business or Creator accounts)
+    instagram:
+      client-id: ${INSTAGRAM_APP_ID:}
+      client-secret: ${INSTAGRAM_APP_SECRET:}
+      redirect-uri: ${INSTAGRAM_REDIRECT_URI:http://localhost:8080/api/channels/oauth/instagram/callback}
 
   # Printed books. Prices in Ethiopian birr: set these to your printing partner's real prices.
   printing:

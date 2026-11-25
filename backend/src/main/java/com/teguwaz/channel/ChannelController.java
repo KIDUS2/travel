@@ -85,6 +85,11 @@ public class ChannelController {
         return currentUser.currentUserId().flatMap(uid -> service.publicStats(uid, id));
     }
 
+    @GetMapping("/{id}/social-stats")
+    public Mono<ChannelDtos.SocialStats> socialStats(@PathVariable UUID id) {
+        return currentUser.currentUserId().flatMap(uid -> service.socialStats(uid, id));
+    }
+
     @GetMapping("/{id}/stats")
     public Mono<YouTubeStats> stats(@PathVariable UUID id) {
         return currentUser.currentUserId().flatMap(uid -> service.stats(uid, id));

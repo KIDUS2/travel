@@ -26,7 +26,9 @@ class ChannelRulesTest {
     @Test
     void onlyYouTubeSupportsStatsToday() {
         assertThat(ChannelService.statsSupported("youtube")).isTrue();
-        assertThat(ChannelService.statsSupported("tiktok")).isFalse();
+        assertThat(ChannelService.statsSupported("tiktok")).isTrue();
+        assertThat(ChannelService.statsSupported("instagram")).isTrue();
+        assertThat(ChannelService.statsSupported("telegram")).isFalse();
         assertThat(ChannelService.statsSupported("website")).isFalse();
     }
 }

@@ -77,4 +77,26 @@ public final class ChannelDtos {
             String note,
             List<Day> days) {
     }
+
+    /** TikTok or Instagram numbers for a connected account: profile counts plus totals over recent posts. */
+    public record SocialStats(
+            String platform,
+            String accountName,
+            String handle,
+            String avatarUrl,
+            String profileUrl,
+            Long followers,
+            Long following,
+            Long totalLikes,
+            Long posts,
+            int recentCount,
+            Long recentViews,
+            long recentLikes,
+            long recentComments,
+            Long recentShares,
+            Double engagementRate,
+            java.util.List<com.teguwaz.connection.SocialPost> recentPosts,
+            java.time.Instant fetchedAt,
+            String note) {
+    }
 }
