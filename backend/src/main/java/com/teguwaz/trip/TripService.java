@@ -27,11 +27,18 @@ public class TripService {
     }
 
     public Flux<TripResponse> list(UUID userId) {
+        // Your trips and the trips shared with you. Counts include only memories you can see.
         return db.sql("""
-                        SELECT t.id, t.name, t.description, t.start_date, t.end_date,
-                               (SELECT count(*) FROM memories m WHERE m.trip_id = t.id) AS memory_count
+                        SELECT t.id, t.name, t.description, t.start_date, t.end_date, t.created_at,
+                               CASE WHEN t.user_id = :userId THEN 'OWNER' ELSE tm.role END AS role,
+                               COALESCE(o.display_name, o.email) AS owner_name,
+                               (SELECT count(*) FROM memories m WHERE m.trip_id = t.id
+                                  AND (m.user_id = :userId OR m.privacy IN ('FAMILY', 'PUBLIC'))) AS memory_count,
+                               (SELECT count(*) FROM trip_members x WHERE x.trip_id = t.id) AS member_count
                         FROM trips t
-                        WHERE t.user_id = :userId
+                        JOIN app_users o ON o.id = t.user_id
+                        LEFT JOIN trip_members tm ON tm.trip_id = t.id AND tm.user_id = :userId
+                        WHERE t.user_id = :userId OR tm.user_id IS NOT NULL
                         ORDER BY t.start_date DESC NULLS LAST, t.created_at DESC
                         """)
                 .bind("userId", userId)
@@ -41,7 +48,10 @@ public class TripService {
                         row.get("description", String.class),
                         row.get("start_date", LocalDate.class),
                         row.get("end_date", LocalDate.class),
-                        orZero(row.get("memory_count", Long.class))))
+                        orZero(row.get("memory_count", Long.class)),
+                        row.get("role", String.class),
+                        row.get("owner_name", String.class),
+                        orZero(row.get("member_count", Long.class))))
                 .all();
     }
 
@@ -84,7 +94,7 @@ public class TripService {
     }
 
     private static TripResponse toResponse(Trip t, long count) {
-        return new TripResponse(t.id(), t.name(), t.description(), t.startDate(), t.endDate(), count);
+        return new TripResponse(t.id(), t.name(), t.description(), t.startDate(), t.endDate(), count, "OWNER", null, 0);
     }
 
     private static long orZero(Long v) {

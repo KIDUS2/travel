@@ -68,7 +68,7 @@ class MemoryServiceTest {
     @Test
     void createRejectsTripOwnedBySomeoneElse() {
         UUID tripId = UUID.randomUUID();
-        when(trips.existsByIdAndUserId(tripId, userId)).thenReturn(Mono.just(false));
+        when(trips.canAddMemories(tripId, userId)).thenReturn(Mono.just(false));
 
         StepVerifier.create(service.create(userId, request(null, tripId)))
                 .expectError(NotFoundException.class)

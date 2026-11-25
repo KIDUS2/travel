@@ -106,7 +106,8 @@ public class MemoryService {
         if (tripId == null) {
             return Mono.empty();
         }
-        return trips.existsByIdAndUserId(tripId, userId)
+        // Your own trip, or a shared trip you were invited to as an editor.
+        return trips.canAddMemories(tripId, userId)
                 .flatMap(ok -> ok ? Mono.<Void>empty() : Mono.<Void>error(new NotFoundException("Trip", tripId)));
     }
 
@@ -119,6 +120,11 @@ public class MemoryService {
 
     private Mono<MemoryResponse> withMedia(Memory m) {
         return withMediaAll(List.of(m)).map(list -> list.get(0));
+    }
+
+    /** Responses with media links for memories already checked for access (shared trips). */
+    public Mono<List<MemoryResponse>> responses(List<Memory> list) {
+        return withMediaAll(list);
     }
 
     private Mono<List<MemoryResponse>> withMediaAll(List<Memory> list) {

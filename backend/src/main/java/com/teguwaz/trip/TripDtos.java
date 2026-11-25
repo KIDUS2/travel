@@ -24,6 +24,10 @@ public final class TripDtos {
             String description,
             LocalDate startDate,
             LocalDate endDate,
-            long memoryCount) {
+            long memoryCount,
+            /** OWNER, EDITOR (can add memories) or VIEWER. */
+            String role,
+            String ownerName,
+            long memberCount) {
     }
 }
