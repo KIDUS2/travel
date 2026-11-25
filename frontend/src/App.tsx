@@ -13,6 +13,7 @@ import { Creator } from './pages/Creator';
 import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
 import { Memories } from './pages/memories/Memories';
+import { PrivacyPolicy, Terms } from './pages/legal/Legal';
 import { Welcome } from './pages/Welcome';
 
 export function App() {
@@ -48,6 +49,8 @@ function PublicRoutes() {
   return (
     <Routes>
       <Route path="welcome" element={<Welcome />} />
+      <Route path="privacy" element={<PrivacyPolicy />} />
+      <Route path="terms" element={<Terms />} />
       <Route path="*" element={<Navigate to="/welcome" replace />} />
     </Routes>
   );

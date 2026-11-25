@@ -29,6 +29,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not-configured}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
       TEGUWAZ_WEB_URL: ${TEGUWAZ_WEB_URL:-http://localhost:5173}
+      # Secret of the teguwaz-backend client; give the backend the same value as KEYCLOAK_BACKEND_SECRET
+      KEYCLOAK_BACKEND_SECRET: ${KEYCLOAK_BACKEND_SECRET:-teguwaz-backend-dev-secret}
     ports:
       - "${KEYCLOAK_PORT:-8180}:${KEYCLOAK_PORT:-8180}"
     volumes:

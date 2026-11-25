@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/api';
 import type { Privacy, Trip } from '../../api/types';
 import { Icon } from '../../components/Icon';
+import { useDefaultPrivacy } from '../../lib/defaultPrivacy';
 import { groupPhotos, readPhotoMeta, suggestTitle, type PhotoGroup } from '../../lib/photoMeta';
 import { regionName } from '../../lib/regions';
 import { prepareForUpload } from '../../offline/compress';
@@ -27,6 +28,7 @@ export function PhotoImport({ trips, onClose, onDone, onQueued }: { trips: Trip[
   const [tripId, setTripId] = useState<string>(NEW_TRIP);
   const [tripName, setTripName] = useState('');
   const [privacy, setPrivacy] = useState<Privacy>('PRIVATE');
+  useDefaultPrivacy(setPrivacy);
   const [saving, setSaving] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const previews = useMemo(() => new Map<File, string>(), []);

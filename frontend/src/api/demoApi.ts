@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { PublicStats, AdminUser, Book, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
+import type { PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -131,6 +131,8 @@ function find(id: string): Memory {
   if (!m) throw new Error('Memory not found');
   return m;
 }
+
+let defaultPrivacy: Privacy = 'PRIVATE';
 
 export const demoApi: TeguwazApi = {
   me: () => delay(me),
@@ -296,5 +298,21 @@ export const demoApi: TeguwazApi = {
   deleteBookPhoto: async (bookId, photoId) => {
     bookPhotos.set(bookId, (bookPhotos.get(bookId) ?? []).filter((p) => p.id !== photoId));
     return delay(undefined);
+  },
+  privacySettings: async () => delay({ defaultPrivacy }),
+  updatePrivacySettings: async (input) => {
+    defaultPrivacy = input.defaultPrivacy;
+    return delay({ defaultPrivacy });
+  },
+  exportData: async () => delay({
+    exportedAt: new Date().toISOString(),
+    about: 'Demo mode: sample data only.',
+    profile: me,
+    trips,
+    memories: memories.map(({ media, ...m }) => ({ ...m, files: media.map((x) => ({ kind: x.kind, contentType: x.contentType, sizeBytes: x.sizeBytes })) })),
+  }),
+  deleteAccount: async (confirm) => {
+    if (confirm !== 'DELETE') throw new Error('Type DELETE to confirm');
+    return delay({ filesDeleted: 0, signInDeleted: false });
   },
 };

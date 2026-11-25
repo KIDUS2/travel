@@ -3,6 +3,7 @@ import { api } from '../../api/api';
 import { ApiError } from '../../api/client';
 import type { Memory, Privacy, Trip } from '../../api/types';
 import { Icon } from '../../components/Icon';
+import { useDefaultPrivacy } from '../../lib/defaultPrivacy';
 import { readPhotoMeta } from '../../lib/photoMeta';
 import { prepareForUpload } from '../../offline/compress';
 import { uploadBlock } from '../../offline/network';
@@ -32,6 +33,7 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved, o
   const [tripId, setTripId] = useState(existing?.tripId ?? defaultTripId ?? '');
   const [happenedAt, setHappenedAt] = useState(localDateTimeValue(existing ? new Date(existing.happenedAt) : new Date()));
   const [privacy, setPrivacy] = useState<Privacy>(existing?.privacy ?? 'PRIVATE');
+  useDefaultPrivacy(setPrivacy, !!existing);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     existing?.latitude != null && existing?.longitude != null ? { lat: existing.latitude, lng: existing.longitude } : null,
   );

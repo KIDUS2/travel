@@ -175,3 +175,9 @@ Teguwaz is a Progressive Web App: in a production build (`npm run build`) a serv
 - New memories and photo imports made offline are kept on the device (IndexedDB outbox) and upload by themselves when the connection is back. Creating a memory is idempotent (`clientId`), so retries never duplicate.
 - **Account → Uploads & data**: *Only on Wi-Fi* holds uploads on mobile data (Android Chrome reports the connection type; other browsers upload anyway), and *Data saver* shrinks photos to 2048 px before upload, which also strips the photo's GPS data from the uploaded file.
 - Signing out clears cached data from the device and warns if memories have not uploaded yet.
+
+### Privacy controls
+
+- **Account → Privacy & your data**: default visibility for new memories, **Download all my data** (one JSON file with photo download links), and **Delete my account** (type DELETE to confirm).
+- Deleting removes files from storage, revokes channel connections, and deletes the user row (which cascades to everything else). To remove the Keycloak sign-in too, give the backend `KEYCLOAK_BACKEND_SECRET` (same value as the `teguwaz-backend` client in Keycloak; `teguwaz-backend-dev-secret` locally) and `KEYCLOAK_URL`.
+- Public pages: `/privacy` and `/terms`. Set `VITE_OPERATOR_NAME` and `VITE_CONTACT_EMAIL` in `frontend/.env`. Google needs the privacy policy URL for the OAuth consent screen. Have the text reviewed before launch.

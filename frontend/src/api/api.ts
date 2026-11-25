@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -36,6 +36,11 @@ export interface TeguwazApi {
   adminSummary(): Promise<AdminSummary>;
   adminUsers(params: { query?: string; page?: number; size?: number }): Promise<Page<AdminUser>>;
   adminUpdateUser(id: string, patch: { role?: AdminUser['role']; status?: AdminUser['status'] }): Promise<AdminUser>;
+  privacySettings(): Promise<PrivacySettings>;
+  updatePrivacySettings(input: PrivacySettings): Promise<PrivacySettings>;
+  /** Everything stored about the traveler, as JSON. */
+  exportData(): Promise<unknown>;
+  deleteAccount(confirm: string): Promise<DeletionResult>;
 }
 
 const httpApi: TeguwazApi = {
@@ -88,6 +93,10 @@ const httpApi: TeguwazApi = {
     return request(`/api/admin/users?${q}`);
   },
   adminUpdateUser: (id, patch) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  privacySettings: () => request('/api/me/privacy'),
+  updatePrivacySettings: (input) => request('/api/me/privacy', { method: 'PUT', body: JSON.stringify(input) }),
+  exportData: () => request('/api/me/export', { cache: 'no-store' }),
+  deleteAccount: (confirm) => request('/api/me', { method: 'DELETE', body: JSON.stringify({ confirm }) }),
 };
 
 export const api: TeguwazApi = config.demoMode ? demoApi : httpApi;

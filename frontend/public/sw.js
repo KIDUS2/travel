@@ -4,7 +4,7 @@
  * - API reads (GET /api/...): network first, falling back to the last copy, so the vault opens offline.
  * - Uploads and other writes are never cached; the app keeps them in its outbox instead.
  */
-const VERSION = 'teguwaz-v3';
+const VERSION = 'teguwaz-v4';
 const SHELL = `${VERSION}-shell`;
 const DATA = `${VERSION}-data`;
 
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
-    if (url.pathname.includes('/oauth/')) return;
+    if (url.pathname.includes('/oauth/') || url.pathname.endsWith('/export')) return;
     event.respondWith(networkFirst(request, DATA));
     return;
   }

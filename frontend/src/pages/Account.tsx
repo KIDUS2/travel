@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { InstallAppCard, UploadSettingsCard } from '../offline/OfflineUi';
+import { PrivacyCard } from './account/PrivacyCard';
 import { Link } from 'react-router-dom';
 import { api } from '../api/api';
 import { ApiError } from '../api/client';
@@ -88,6 +89,7 @@ export function Account() {
             {isAdmin ? <Link to="/admin/users" className="btn"><Icon name="users" size={18} />Manage users</Link> : null}
           </section>
 
+          <PrivacyCard />
           <UploadSettingsCard />
           <InstallAppCard />
 

@@ -255,3 +255,12 @@ export interface YouTubeStats {
   note: string | null;
   days: YouTubeDay[];
 }
+
+export interface PrivacySettings {
+  defaultPrivacy: Privacy;
+}
+
+export interface DeletionResult {
+  filesDeleted: number;
+  signInDeleted: boolean;
+}

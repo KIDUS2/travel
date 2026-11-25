@@ -26,6 +26,13 @@ spring:
 teguwaz:
   # Comma-separated emails that become admins when they first sign in (bootstrap)
   admin-emails: ${ADMIN_EMAILS:}
+  # Optional: lets "Delete my account" also remove the Keycloak sign-in. Needs the confidential
+  # client teguwaz-backend (service account with realm-management manage-users), see the realm file.
+  keycloak-admin:
+    base-url: ${KEYCLOAK_URL:http://localhost:8180}
+    realm: ${KEYCLOAK_REALM:teguwaz}
+    client-id: ${KEYCLOAK_BACKEND_CLIENT_ID:teguwaz-backend}
+    client-secret: ${KEYCLOAK_BACKEND_SECRET:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   storage:

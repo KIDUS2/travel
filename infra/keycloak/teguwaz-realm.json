@@ -32,6 +32,17 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:5173/*##${TEGUWAZ_WEB_URL:http://localhost:5173}/*"
       }
+    },
+    {
+      "clientId": "teguwaz-backend",
+      "name": "Teguwaz API (account deletion)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KEYCLOAK_BACKEND_SECRET:teguwaz-backend-dev-secret}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false
     }
   ],
   "users": [
@@ -68,6 +79,17 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "service-account-teguwaz-backend",
+      "enabled": true,
+      "serviceAccountClientId": "teguwaz-backend",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users"
+        ]
+      }
     }
   ],
   "roles": {
