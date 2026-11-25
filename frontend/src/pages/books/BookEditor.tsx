@@ -12,6 +12,7 @@ import {
 } from './layouts';
 import { MEDIA_MIME, PageView, type PageContext } from './PageView';
 import { BookPreview } from './BookPreview';
+import { OrderDialog } from './OrderDialog';
 import './bookEditor.css';
 
 type Panel = 'photos' | 'layouts' | 'add' | 'style';
@@ -34,6 +35,8 @@ export function BookEditor() {
   const [photoScope, setPhotoScope] = useState<'trip' | 'all'>('trip');
   const [save, setSave] = useState<SaveState>('saved');
   const [preview, setPreview] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const [pdfHelp, setPdfHelp] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageW, setStageW] = useState(900);
 
@@ -230,8 +233,8 @@ export function BookEditor() {
           {save === 'saved' ? 'All changes saved' : save === 'saving' ? 'Saving…' : save === 'unsaved' ? 'Unsaved changes' : 'Could not save, retrying on next change'}
         </span>
         <button type="button" className="btn" style={{ minHeight: 40 }} onClick={() => setPreview(true)}><Icon name="book" size={18} />Preview</button>
-        <button type="button" className="btn" style={{ minHeight: 40 }} onClick={() => printBook(book)}><Icon name="upload" size={18} />Print / PDF</button>
-        <button type="button" className="btn btn-yellow" style={{ minHeight: 40 }} disabled title="Printing partners are not set up yet">Order book</button>
+        <button type="button" className="btn" style={{ minHeight: 40 }} onClick={() => setPdfHelp(true)}><Icon name="download" size={18} />Download PDF</button>
+        <button type="button" className="btn btn-yellow" style={{ minHeight: 40 }} onClick={() => setOrdering(true)}><Icon name="cart" size={18} />Order book</button>
       </header>
 
       <div className="editor-body">
@@ -439,6 +442,26 @@ export function BookEditor() {
         </button>
       </nav>
 
+      {ordering ? <OrderDialog book={book} onClose={() => setOrdering(false)} /> : null}
+      {pdfHelp ? (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setPdfHelp(false)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="pdf-title" style={{ width: 'min(460px, 100%)' }}>
+            <div className="stack" style={{ padding: 24, gap: 12 }}>
+              <h2 id="pdf-title" className="section-title" style={{ fontSize: 22 }}>Download as PDF</h2>
+              <p style={{ margin: 0 }}>The print window opens with every page at its real paper size.</p>
+              <ol className="small" style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>For <strong>Destination</strong> (or Printer), choose <strong>Save as PDF</strong>.</li>
+                <li>Leave margins at <strong>None</strong> and turn on <strong>Background graphics</strong> if you see it.</li>
+                <li>Press <strong>Save</strong>.</li>
+              </ol>
+              <div className="pills" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" className="btn" onClick={() => setPdfHelp(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={() => { setPdfHelp(false); setTimeout(() => printBook(book), 50); }}>Open print window</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {preview ? <BookPreview book={book} ctx={ctx} onClose={() => setPreview(false)} /> : null}
       <PrintPages book={book} ctx={ctx} />
     </div>

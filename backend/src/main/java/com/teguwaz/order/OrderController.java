@@ -77,6 +77,11 @@ public class OrderController {
         return currentUser.requireAdmin().flatMapMany(a -> orders.all(status));
     }
 
+    @GetMapping("/api/admin/orders/{id}/print")
+    public Mono<OrderService.PrintFile> printFile(@PathVariable UUID id) {
+        return currentUser.requireAdmin().flatMap(a -> orders.printFile(id));
+    }
+
     @PatchMapping("/api/admin/orders/{id}")
     public Mono<OrderResponse> update(@PathVariable UUID id, @Valid @RequestBody StatusUpdate body) {
         return currentUser.requireAdmin().flatMap(a -> orders.updateStatus(id, body.status(), body.note()));

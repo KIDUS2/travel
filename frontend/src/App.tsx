@@ -15,6 +15,9 @@ import { Home } from './pages/Home';
 import { Memories } from './pages/memories/Memories';
 import { PrivacyPolicy, Terms } from './pages/legal/Legal';
 import { Welcome } from './pages/Welcome';
+import { AdminOrders } from './pages/AdminOrders';
+import { AdminOrderPrint } from './pages/AdminOrderPrint';
+import { OrderDetail, Orders } from './pages/orders/Orders';
 
 export function App() {
   return (
@@ -24,6 +27,7 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="books/:id" element={<BookEditor />} />
+            <Route path="admin/orders/:id/print" element={<AdminOrderPrint />} />
             <Route element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="dashboard" element={<Dashboard />} />
@@ -34,6 +38,9 @@ export function App() {
               <Route path="alerts" element={<Alerts />} />
               <Route path="account" element={<Account />} />
               <Route path="admin/users" element={<AdminUsers />} />
+              <Route path="admin/orders" element={<AdminOrders />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="orders/:id" element={<OrderDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

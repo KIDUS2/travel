@@ -264,3 +264,71 @@ export interface DeletionResult {
   filesDeleted: number;
   signInDeleted: boolean;
 }
+
+// ---- Printed book orders ----
+
+export type DeliveryMethod = 'PICKUP' | 'ADDIS' | 'REGIONAL';
+export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'PRINTING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'PAYMENT_FAILED';
+
+export interface PrintingInfo {
+  paymentsAvailable: boolean;
+  testMode: boolean;
+  pickupAddress: string;
+  minPages: number;
+  maxPages: number;
+  deliveryFees: Record<DeliveryMethod, number>;
+}
+
+export interface PrintQuote {
+  designedPages: number;
+  printedPages: number;
+  copies: number;
+  unitPrice: number;
+  deliveryFee: number;
+  total: number;
+  currency: 'ETB';
+}
+
+export interface OrderInput {
+  copies: number;
+  delivery: DeliveryMethod;
+  recipientName: string;
+  phone: string;
+  city?: string | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
+export interface BookOrder {
+  id: string;
+  bookId: string | null;
+  bookTitle: string;
+  size: BookSize;
+  finish: BookSettings['finish'];
+  printedPages: number;
+  copies: number;
+  unitPrice: number;
+  deliveryFee: number;
+  total: number;
+  currency: 'ETB';
+  deliveryMethod: DeliveryMethod;
+  recipientName: string;
+  phone: string;
+  city: string | null;
+  address: string | null;
+  notes: string | null;
+  status: OrderStatus;
+  paymentReference: string | null;
+  paymentMethod: string | null;
+  checkoutUrl: string | null;
+  paidAt: string | null;
+  adminNote: string | null;
+  createdAt: string;
+}
+
+export interface PrintFile {
+  title: string;
+  settings: BookSettings;
+  pages: BookPage[];
+  photoUrls: Record<string, string>;
+}

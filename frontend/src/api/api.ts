@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { PrintFile, BookOrder, DeliveryMethod, OrderInput, OrderStatus, PrintingInfo, PrintQuote, DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -41,6 +41,16 @@ export interface TeguwazApi {
   /** Everything stored about the traveler, as JSON. */
   exportData(): Promise<unknown>;
   deleteAccount(confirm: string): Promise<DeletionResult>;
+  printingInfo(): Promise<PrintingInfo>;
+  quote(bookId: string, copies: number, delivery: DeliveryMethod): Promise<PrintQuote>;
+  /** Creates the order and returns Chapa's checkout page to send the traveler to. */
+  createOrder(bookId: string, input: OrderInput): Promise<{ order: BookOrder; checkoutUrl: string }>;
+  listOrders(): Promise<BookOrder[]>;
+  /** Also re-checks the payment with Chapa while the order is waiting for payment. */
+  getOrder(id: string): Promise<BookOrder>;
+  adminOrders(status?: OrderStatus): Promise<BookOrder[]>;
+  adminUpdateOrder(id: string, status: OrderStatus, note?: string): Promise<BookOrder>;
+  adminOrderPrintFile(id: string): Promise<PrintFile>;
 }
 
 const httpApi: TeguwazApi = {
@@ -97,6 +107,14 @@ const httpApi: TeguwazApi = {
   updatePrivacySettings: (input) => request('/api/me/privacy', { method: 'PUT', body: JSON.stringify(input) }),
   exportData: () => request('/api/me/export', { cache: 'no-store' }),
   deleteAccount: (confirm) => request('/api/me', { method: 'DELETE', body: JSON.stringify({ confirm }) }),
+  printingInfo: () => request('/api/printing'),
+  quote: (bookId, copies, delivery) => request(`/api/books/${bookId}/quote?copies=${copies}&delivery=${delivery}`),
+  createOrder: (bookId, input) => request(`/api/books/${bookId}/orders`, { method: 'POST', body: JSON.stringify(input) }),
+  listOrders: () => request('/api/orders', { cache: 'no-store' }),
+  getOrder: (id) => request(`/api/orders/${id}`, { cache: 'no-store' }),
+  adminOrders: (status) => request(`/api/admin/orders${status ? `?status=${status}` : ''}`, { cache: 'no-store' }),
+  adminOrderPrintFile: (id) => request(`/api/admin/orders/${id}/print`, { cache: 'no-store' }),
+  adminUpdateOrder: (id, status, note) => request(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note: note ?? null }) }),
 };
 
 export const api: TeguwazApi = config.demoMode ? demoApi : httpApi;

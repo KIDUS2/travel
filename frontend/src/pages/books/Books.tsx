@@ -93,7 +93,10 @@ export function Books() {
     <>
       <PageHeader title="Book studio" am="የትዝታ መጽሐፍ"
         subtitle="Turn a trip into a printed photo book. Teguwaz lays out a first draft from your memories, then you make every page yours."
-        actions={books.length ? <button type="button" className="btn btn-primary" onClick={scrollToCreate}><Icon name="plus" size={18} stroke={2.6} />New book</button> : undefined} />
+        actions={<>
+          <Link to="/orders" className="btn"><Icon name="cart" size={18} />My orders</Link>
+          {books.length ? <button type="button" className="btn btn-primary" onClick={scrollToCreate}><Icon name="plus" size={18} stroke={2.6} />New book</button> : null}
+        </>} />
 
       <section className="shelf" aria-labelledby="mine">
         <div className="shelf-head">

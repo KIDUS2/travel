@@ -181,3 +181,13 @@ Teguwaz is a Progressive Web App: in a production build (`npm run build`) a serv
 - **Account → Privacy & your data**: default visibility for new memories, **Download all my data** (one JSON file with photo download links), and **Delete my account** (type DELETE to confirm).
 - Deleting removes files from storage, revokes channel connections, and deletes the user row (which cascades to everything else). To remove the Keycloak sign-in too, give the backend `KEYCLOAK_BACKEND_SECRET` (same value as the `teguwaz-backend` client in Keycloak; `teguwaz-backend-dev-secret` locally) and `KEYCLOAK_URL`.
 - Public pages: `/privacy` and `/terms`. Set `VITE_OPERATOR_NAME` and `VITE_CONTACT_EMAIL` in `frontend/.env`. Google needs the privacy policy URL for the OAuth consent screen. Have the text reviewed before launch.
+
+### Printed book orders (Chapa: telebirr, CBE Birr, M-Pesa, bank, card)
+
+In the book editor, **Download PDF** opens the print window at real paper size (choose *Save as PDF*), and **Order book** takes copies, delivery (pickup, Addis Ababa or another city) and a phone number, shows the price in birr, and sends the traveler to Chapa's checkout. Chapa covers telebirr, so there is no separate telebirr integration.
+
+1. Create an account at dashboard.chapa.co and copy the **secret key** (`CHASECK_TEST-…` for test mode).
+2. Start the backend with `CHAPA_SECRET_KEY=…` and `BACKEND_PUBLIC_URL=` the backend's public address (Chapa calls `<url>/api/orders/chapa/callback`; locally it cannot reach you, but returning to the order page also confirms payment).
+3. Set real prices under `teguwaz.printing` in `application.yml` (base price per size, extra pages, finish, delivery fees) and `PRINT_PICKUP_ADDRESS`.
+
+An order is marked paid only after the backend verifies the transaction with Chapa (`/v1/transaction/verify`), never from the browser or the callback alone. Each order keeps a snapshot of the pages as ordered. Admins get **Print orders**: open the print file, then move orders through Printing → On the way → Delivered, or cancel (refunds are done in the Chapa dashboard).

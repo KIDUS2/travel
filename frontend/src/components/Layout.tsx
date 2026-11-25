@@ -30,7 +30,9 @@ export function Layout() {
   };
   const { me, isAdmin } = useMe();
   const name = me?.displayName || authName;
-  const nav = isAdmin ? [...NAV, { to: '/admin/users', icon: 'users', en: 'Users', am: 'ተጠቃሚዎች' }] : NAV;
+  const nav = isAdmin
+    ? [...NAV, { to: '/admin/orders', icon: 'cart', en: 'Print orders', am: 'የህትመት ትዕዛዞች' }, { to: '/admin/users', icon: 'users', en: 'Users', am: 'ተጠቃሚዎች' }]
+    : NAV;
   const { lang, setLang } = useLang();
   const bi = useBi();
 

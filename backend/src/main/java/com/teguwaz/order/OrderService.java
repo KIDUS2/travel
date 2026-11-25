@@ -44,9 +44,11 @@ public class OrderService {
     private final PlatformProperties platform;
     private final DatabaseClient db;
     private final ObjectMapper json;
+    private final com.teguwaz.storage.StorageService storage;
 
     public OrderService(BookOrderRepository orders, BookRepository books, BookPricing pricing, PrintingProperties printing,
-                        ChapaClient chapa, ChapaProperties chapaProps, PlatformProperties platform, DatabaseClient db, ObjectMapper json) {
+                        ChapaClient chapa, ChapaProperties chapaProps, PlatformProperties platform, DatabaseClient db, ObjectMapper json,
+                        com.teguwaz.storage.StorageService storage) {
         this.orders = orders;
         this.books = books;
         this.pricing = pricing;
@@ -56,6 +58,7 @@ public class OrderService {
         this.platform = platform;
         this.db = db;
         this.json = json;
+        this.storage = storage;
     }
 
     public PrintingInfo info() {
@@ -189,6 +192,40 @@ public class OrderService {
                     return orders.save(o.withStatus(status, trimToNull(note)));
                 })
                 .map(OrderResponse::from);
+    }
+
+    public record PrintFile(String title, JsonNode settings, JsonNode pages, java.util.Map<String, String> photoUrls) {
+    }
+
+    /** The book exactly as ordered, with fresh photo links, so the print team can print it. */
+    public Mono<PrintFile> printFile(UUID orderId) {
+        return orders.findById(orderId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Order", orderId)))
+                .flatMap(o -> {
+                    JsonNode snap;
+                    try {
+                        snap = json.readTree(o.snapshot().asString());
+                    } catch (Exception e) {
+                        return Mono.error(new BadRequestException("This order's pages could not be read"));
+                    }
+                    java.util.Set<UUID> ids = new java.util.HashSet<>();
+                    snap.path("pages").forEach(page -> page.path("slots").forEach(v -> {
+                        try {
+                            ids.add(UUID.fromString(v.asText()));
+                        } catch (IllegalArgumentException ignored) {
+                            // a text slot, not a photo
+                        }
+                    }));
+                    if (ids.isEmpty()) {
+                        return Mono.just(new PrintFile(o.bookTitle(), snap.path("settings"), snap.path("pages"), java.util.Map.of()));
+                    }
+                    return db.sql("SELECT id, object_key FROM memory_media WHERE id = ANY(:ids) UNION ALL SELECT id, object_key FROM book_media WHERE id = ANY(:ids)")
+                            .bind("ids", ids.toArray(new UUID[0]))
+                            .map(row -> java.util.Map.entry(row.get("id", UUID.class).toString(), storage.presignedGetUrl(row.get("object_key", String.class))))
+                            .all()
+                            .collectMap(java.util.Map.Entry::getKey, java.util.Map.Entry::getValue)
+                            .map(urls -> new PrintFile(o.bookTitle(), snap.path("settings"), snap.path("pages"), urls));
+                });
     }
 
     static String[] splitName(String full) {

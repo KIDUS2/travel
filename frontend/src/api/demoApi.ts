@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
+import type { BookOrder, DeliveryMethod, PrintQuote, PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -133,6 +133,19 @@ function find(id: string): Memory {
 }
 
 let defaultPrivacy: Privacy = 'PRIVATE';
+let orders: BookOrder[] = [];
+const DEMO_PRICES = {
+  base: { 'a4-landscape': 1800, 'a4-portrait': 1800, 'a5-portrait': 950, square: 1500 } as Record<string, number>,
+  extra: { 'a4-landscape': 40, 'a4-portrait': 40, 'a5-portrait': 25, square: 35 } as Record<string, number>,
+  finish: { hard: 600, soft: 0, lay: 900 } as Record<string, number>,
+  delivery: { PICKUP: 0, ADDIS: 250, REGIONAL: 600 } as Record<DeliveryMethod, number>,
+};
+function demoQuote(book: Book, copies: number, delivery: DeliveryMethod): PrintQuote {
+  const designed = Math.max(0, book.pages.length - 1);
+  const printed = Math.max(20, designed + (designed % 2));
+  const unit = DEMO_PRICES.base[book.settings.size] + DEMO_PRICES.finish[book.settings.finish] + DEMO_PRICES.extra[book.settings.size] * Math.max(0, printed - 20);
+  return { designedPages: designed, printedPages: printed, copies, unitPrice: unit, deliveryFee: DEMO_PRICES.delivery[delivery], total: unit * copies + DEMO_PRICES.delivery[delivery], currency: 'ETB' };
+}
 
 export const demoApi: TeguwazApi = {
   me: () => delay(me),
@@ -311,6 +324,49 @@ export const demoApi: TeguwazApi = {
     trips,
     memories: memories.map(({ media, ...m }) => ({ ...m, files: media.map((x) => ({ kind: x.kind, contentType: x.contentType, sizeBytes: x.sizeBytes })) })),
   }),
+  printingInfo: async () => delay({ paymentsAvailable: true, testMode: true, pickupAddress: 'Bole, Addis Ababa (demo pickup point)', minPages: 20, maxPages: 120, deliveryFees: DEMO_PRICES.delivery }),
+  quote: async (bookId, copies, delivery) => {
+    const book = await demoApi.getBook(bookId);
+    return delay(demoQuote(book, copies, delivery));
+  },
+  createOrder: async (bookId, input) => {
+    const book = await demoApi.getBook(bookId);
+    const q = demoQuote(book, input.copies, input.delivery);
+    if (q.designedPages < 1) throw new Error('Add at least one page after the cover before ordering');
+    const id = uid();
+    const order: BookOrder = {
+      id, bookId, bookTitle: book.title, size: book.settings.size, finish: book.settings.finish, printedPages: q.printedPages, copies: q.copies,
+      unitPrice: q.unitPrice, deliveryFee: q.deliveryFee, total: q.total, currency: 'ETB', deliveryMethod: input.delivery,
+      recipientName: input.recipientName, phone: input.phone, city: input.city ?? null, address: input.address ?? null, notes: input.notes ?? null,
+      status: 'PENDING_PAYMENT', paymentReference: null, paymentMethod: null, checkoutUrl: `/orders/${id}?demo=pay`, paidAt: null, adminNote: null, createdAt: now(),
+    };
+    orders = [order, ...orders];
+    return delay({ order, checkoutUrl: order.checkoutUrl! });
+  },
+  listOrders: async () => delay(orders),
+  getOrder: async (id) => {
+    const o = orders.find((x) => x.id === id);
+    if (!o) throw new Error('Order not found');
+    // Demo checkout: returning with ?demo=pay counts as a successful telebirr payment.
+    if (o.status === 'PENDING_PAYMENT' && window.location.search.includes('demo=pay')) {
+      Object.assign(o, { status: 'PAID', paidAt: now(), paymentMethod: 'telebirr', paymentReference: 'DEMO-' + id.slice(0, 6).toUpperCase(), checkoutUrl: null });
+    }
+    return delay({ ...o });
+  },
+  adminOrders: async (status) => delay(status ? orders.filter((o) => o.status === status) : orders),
+  adminOrderPrintFile: async (id) => {
+    const o = orders.find((x) => x.id === id);
+    if (!o?.bookId) throw new Error('Order not found');
+    const book = await demoApi.getBook(o.bookId);
+    const photoUrls: Record<string, string> = {};
+    for (const m of memories) for (const x of m.media) photoUrls[x.id] = x.url;
+    for (const p of bookPhotos.get(o.bookId) ?? []) photoUrls[p.id] = p.url;
+    return delay({ title: book.title, settings: book.settings, pages: book.pages, photoUrls });
+  },
+  adminUpdateOrder: async (id, status, note) => {
+    orders = orders.map((o) => (o.id === id ? { ...o, status, adminNote: note ?? o.adminNote } : o));
+    return delay(orders.find((o) => o.id === id)!);
+  },
   deleteAccount: async (confirm) => {
     if (confirm !== 'DELETE') throw new Error('Type DELETE to confirm');
     return delay({ filesDeleted: 0, signInDeleted: false });
