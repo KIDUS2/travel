@@ -197,3 +197,14 @@ An order is marked paid only after the backend verifies the transaction with Cha
 Open a trip in Memories and press **Share trip** to make an invite link: *can add memories* (editor) or *can only look* (viewer). Links work for 14 days, are stored only as a SHA-256 hash, and can be turned off. People join at `/join/<token>` after signing in.
 
 Members see their own memories plus everyone's **Family** and **Public** memories in the trip; **Only me** stays private. Everyone edits only their own memories. Books made from a shared trip can use all members' shared photos. The owner can change roles or remove people; members can leave (their memories stay in their own vault).
+
+### TikTok and Instagram stats
+
+Add the channel in Creator studio, then **Connect stats**: the owner signs in once (read-only) and Teguwaz shows followers, likes, posts and the recent videos or posts with their numbers. Tokens are encrypted with `TOKEN_ENCRYPTION_KEY` and refreshed automatically (TikTok daily, Instagram's 60-day token a week before it ends).
+
+| Platform | Server settings | Redirect URI to register | Approval |
+|---|---|---|---|
+| TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `<backend>/api/channels/oauth/tiktok/callback` | App with Login Kit + Display API (`user.info.basic`, `user.info.profile`, `user.info.stats`, `video.list`). Sandbox test users until TikTok approves it. |
+| Instagram | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | `<backend>/api/channels/oauth/instagram/callback` | Meta app, *Instagram API with Instagram login* (`instagram_business_basic`, `instagram_business_manage_insights`). Business or Creator accounts only; app testers work at once, others need Meta's app review. |
+
+Instagram does not report views without insights, so its engagement is likes and comments per post as a share of followers; the app says so next to the number.

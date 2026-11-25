@@ -347,3 +347,27 @@ export interface NewTripInvite { id: string; token: string; role: 'EDITOR' | 'VI
 export interface InvitePreview { tripId: string; tripName: string; ownerName: string | null; role: 'EDITOR' | 'VIEWER'; alreadyMember: boolean; expired: boolean }
 export interface TripMemory { memory: Memory; authorId: string; authorName: string; mine: boolean }
 export interface TripFeed { items: TripMemory[]; total: number }
+
+// ---- TikTok / Instagram stats ----
+
+export interface SocialPost { id: string; title: string; url: string | null; thumbnailUrl: string | null; publishedAt: string | null; views: number | null; likes: number | null; comments: number | null; shares: number | null }
+export interface SocialStats {
+  platform: 'tiktok' | 'instagram';
+  accountName: string | null;
+  handle: string | null;
+  avatarUrl: string | null;
+  profileUrl: string | null;
+  followers: number | null;
+  following: number | null;
+  totalLikes: number | null;
+  posts: number | null;
+  recentCount: number;
+  recentViews: number | null;
+  recentLikes: number;
+  recentComments: number;
+  recentShares: number | null;
+  engagementRate: number | null;
+  recentPosts: SocialPost[];
+  fetchedAt: string;
+  note: string | null;
+}

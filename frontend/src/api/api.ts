@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { InvitePreview, NewTripInvite, TripFeed, TripInvite, TripMember, PrintFile, BookOrder, DeliveryMethod, OrderInput, OrderStatus, PrintingInfo, PrintQuote, DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { SocialStats, InvitePreview, NewTripInvite, TripFeed, TripInvite, TripMember, PrintFile, BookOrder, DeliveryMethod, OrderInput, OrderStatus, PrintingInfo, PrintQuote, DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -33,6 +33,8 @@ export interface TeguwazApi {
   disconnectChannel(id: string): Promise<Channel>;
   channelStats(id: string): Promise<YouTubeStats>;
   channelPublicStats(id: string): Promise<PublicStats>;
+  /** Live TikTok or Instagram numbers for a connected account. */
+  channelSocialStats(id: string): Promise<SocialStats>;
   adminSummary(): Promise<AdminSummary>;
   adminUsers(params: { query?: string; page?: number; size?: number }): Promise<Page<AdminUser>>;
   adminUpdateUser(id: string, patch: { role?: AdminUser['role']; status?: AdminUser['status'] }): Promise<AdminUser>;
@@ -106,6 +108,7 @@ const httpApi: TeguwazApi = {
   connectChannel: (id) => request(`/api/channels/${id}/connect`, { method: 'POST' }),
   disconnectChannel: (id) => request(`/api/channels/${id}/connect`, { method: 'DELETE' }),
   channelStats: (id) => request(`/api/channels/${id}/stats`),
+  channelSocialStats: (id) => request(`/api/channels/${id}/social-stats`),
   channelPublicStats: (id) => request(`/api/channels/${id}/public-stats`),
   adminSummary: () => request('/api/admin/summary'),
   adminUsers: ({ query, page = 0, size = 25 }) => {

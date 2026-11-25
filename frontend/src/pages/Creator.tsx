@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/api';
 import { ApiError } from '../api/client';
-import type { Channel, Platform, PlatformInfo, PublicStats, YouTubeStats } from '../api/types';
+import type { Channel, Platform, PlatformInfo, PublicStats, SocialStats, YouTubeStats } from '../api/types';
 import { config } from '../config';
 import { BarChart, Kpi, RankedBars, SERIES, SplitBar, fmt } from '../components/charts';
 import { Icon } from '../components/Icon';
@@ -46,13 +46,16 @@ export function Creator() {
 
   const platforms = platformsQ.data ?? [];
   const channels = channelsQ.data ?? [];
-  const youtubeChannels = channels.filter((c) => c.platform === 'youtube');
-  const activeStatsId = statsFor && youtubeChannels.some((c) => c.id === statsFor) ? statsFor : youtubeChannels[0]?.id ?? null;
-  const active = youtubeChannels.find((c) => c.id === activeStatsId) ?? null;
+  // Channels with stats: YouTube, TikTok and Instagram.
+  const statsChannels = channels.filter((c) => c.statsSupported);
+  const activeStatsId = statsFor && statsChannels.some((c) => c.id === statsFor) ? statsFor : statsChannels[0]?.id ?? null;
+  const active = statsChannels.find((c) => c.id === activeStatsId) ?? null;
+  const isYouTube = active?.platform === 'youtube';
   const ytInfo = platforms.find((p) => p.id === 'youtube');
   const publicReady = !!ytInfo?.publicStatsAvailable;
-  const publicQ = useAsync(() => (active && publicReady ? api.channelPublicStats(active.id) : Promise.resolve(null)), [active?.id, active?.url, publicReady]);
-  const statsQ = useAsync(() => (active?.connected ? api.channelStats(active.id) : Promise.resolve(null)), [active?.id, active?.connected]);
+  const publicQ = useAsync(() => (active && isYouTube && publicReady ? api.channelPublicStats(active.id) : Promise.resolve(null)), [active?.id, active?.url, publicReady]);
+  const statsQ = useAsync(() => (active?.connected && isYouTube ? api.channelStats(active.id) : Promise.resolve(null)), [active?.id, active?.connected]);
+  const socialQ = useAsync(() => (active?.connected && !isYouTube ? api.channelSocialStats(active.id) : Promise.resolve(null)), [active?.id, active?.connected]);
 
   const justConnected = params.get('connected');
   const returnedError = params.get('error');
@@ -140,10 +143,10 @@ export function Creator() {
                   <>
                     <button type="button" className={`btn${activeStatsId === c.id ? ' btn-primary' : ''}`} onClick={() => { setStatsFor(c.id); document.getElementById('stats')?.scrollIntoView({ behavior: 'smooth' }); }}>View stats</button>
                     {c.connected ? (
-                      <button type="button" className="btn" onClick={() => disconnectStats(c)} title="Stop reading private analytics">Stop analytics</button>
+                      <button type="button" className="btn" onClick={() => disconnectStats(c)} title="Stop reading private analytics">{c.platform === 'youtube' ? 'Stop analytics' : 'Disconnect'}</button>
                     ) : (
                       <button type="button" className="btn" onClick={() => connect(c)} disabled={busy === c.id} title="Sign in as the channel owner for daily views and engagement">
-                        {busy === c.id ? 'Opening…' : 'Connect analytics'}
+                        {busy === c.id ? 'Opening…' : c.platform === 'youtube' ? 'Connect analytics' : 'Connect stats'}
                       </button>
                     )}
                   </>
@@ -163,11 +166,11 @@ export function Creator() {
         <section aria-labelledby="stats" id="stats" className="stack" style={{ gap: 14, scrollMarginTop: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <h2 className="section-title" id="stats-title">Channel stats <span className="am">· ስታቲስቲክስ</span></h2>
-            {youtubeChannels.length > 1 ? (
+            {statsChannels.length > 1 ? (
               <label className="field" style={{ flexDirection: 'row', alignItems: 'center', fontWeight: 400 }}>
                 <span className="muted">Channel</span>
                 <select className="select" style={{ width: 'auto' }} value={active.id} onChange={(e) => setStatsFor(e.target.value)}>
-                  {youtubeChannels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {statsChannels.map((c) => <option key={c.id} value={c.id}>{c.name} · {platforms.find((p) => p.id === c.platform)?.name ?? c.platform}</option>)}
                 </select>
               </label>
             ) : null}
@@ -176,10 +179,12 @@ export function Creator() {
           {config.demoMode ? (
             <div className="demo-warning" role="note">
               <strong>Demo mode: these are sample numbers, not your channel.</strong>
-              <span>To see real numbers for {active.name}, run the backend with <code>YOUTUBE_API_KEY</code> set and start the app with <code>VITE_DEMO_MODE=false</code>.</span>
+              <span>To see real numbers for {active.name}, run the backend with {isYouTube ? <><code>YOUTUBE_API_KEY</code> set</> : <>the {active.platform === 'tiktok' ? 'TikTok' : 'Instagram'} app keys set</>} and start the app with <code>VITE_DEMO_MODE=false</code>.</span>
             </div>
           ) : null}
 
+          {isYouTube ? (
+            <>
           {publicReady ? (
             publicQ.data ? <PublicStatsPanel stats={publicQ.data} url={active.url} demo={config.demoMode} onRefresh={() => void publicQ.reload()} />
               : publicQ.error ? <div className="banner error">{publicQ.error}</div>
@@ -207,6 +212,27 @@ export function Creator() {
                 <span className="muted small">Private analytics need the channel owner to sign in with Google once. Each channel connects separately.</span>
               </div>
               <button type="button" className="btn btn-primary" onClick={() => connect(active)} disabled={busy === active.id}>Connect analytics</button>
+            </div>
+          )}
+            </>
+          ) : active.connected ? (
+            socialQ.data ? <SocialStatsPanel stats={socialQ.data} demo={config.demoMode} onRefresh={() => void socialQ.reload()} />
+              : socialQ.error ? <div className="banner error">{socialQ.error}</div>
+                : <div className="card card-pad muted">Reading {active.name}…</div>
+          ) : (
+            <div className="card card-pad" style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
+              <BrandMark platform={active.platform} size={48} />
+              <div className="stack" style={{ gap: 4, flex: '1 1 320px' }}>
+                <strong>Followers, likes and your latest {active.platform === 'tiktok' ? 'videos' : 'posts'}</strong>
+                <span className="muted small">
+                  {active.platform === 'tiktok'
+                    ? 'Sign in to TikTok once to let Teguwaz read your profile counts and recent videos. Read-only.'
+                    : 'Sign in to Instagram once to let Teguwaz read your profile counts and recent posts. Needs a Business or Creator account (free to switch in the Instagram app). Read-only.'}
+                </span>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={() => connect(active)} disabled={busy === active.id}>
+                Connect {active.platform === 'tiktok' ? 'TikTok' : 'Instagram'}
+              </button>
             </div>
           )}
         </section>
@@ -402,6 +428,62 @@ function PublicStatsPanel({ stats, url, demo, onRefresh }: { stats: PublicStats;
   );
 }
 
+function SocialStatsPanel({ stats, demo, onRefresh }: { stats: SocialStats; demo: boolean; onRefresh: () => void }) {
+  const tt = stats.platform === 'tiktok';
+  const posts = stats.recentPosts;
+  const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
+  const metric = tt ? 'views' : 'likes';
+  return (
+    <>
+      <section className="card" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }} aria-label="Account">
+        {stats.avatarUrl ? <img src={stats.avatarUrl} alt="" width={56} height={56} style={{ borderRadius: '50%', flex: 'none' }} referrerPolicy="no-referrer" />
+          : <BrandMark platform={stats.platform} size={56} />}
+        <div className="stack" style={{ gap: 2, flex: '1 1 240px' }}>
+          <strong style={{ fontSize: 18 }}>{stats.accountName ?? stats.handle} {demo ? <span className="sample-ribbon">Sample</span> : <span className="tag green">Live from {tt ? 'TikTok' : 'Instagram'}</span>}</strong>
+          <span className="muted small">{stats.handle ?? ''} · updated {new Date(stats.fetchedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        {stats.profileUrl ? <a className="btn" href={stats.profileUrl} target="_blank" rel="noopener noreferrer"><Icon name="link" size={16} />Open on {tt ? 'TikTok' : 'Instagram'}</a> : null}
+        <button type="button" className="btn" onClick={onRefresh}>Refresh</button>
+      </section>
+      <section className="kpi-strip" aria-label="Totals">
+        <Kpi label="Followers" value={stats.followers == null ? '—' : fmt(stats.followers)} />
+        {tt ? <Kpi label="Total likes" value={stats.totalLikes == null ? '—' : fmt(stats.totalLikes)} /> : <Kpi label="Following" value={stats.following == null ? '—' : fmt(stats.following)} />}
+        <Kpi label={tt ? 'Videos' : 'Posts'} value={stats.posts == null ? '—' : fmt(stats.posts)} />
+        <Kpi label={`Engagement, last ${stats.recentCount}`} value={stats.engagementRate == null ? '—' : `${stats.engagementRate}%`}
+          note={stats.note ?? (tt ? 'Likes, comments and shares per view' : undefined)} />
+      </section>
+      {posts.length ? (
+        <div className="dash-grid">
+          <section className="card card-pad span-5" aria-labelledby="sp-rank">
+            <h2 id="sp-rank" className="panel-title">Recent {tt ? 'videos' : 'posts'} by {metric}</h2>
+            <RankedBars items={posts.map((p) => ({ key: p.id, label: p.title, value: (tt ? p.views : p.likes) ?? 0 }))} />
+          </section>
+          <section className="card card-pad span-7" aria-labelledby="sp-table">
+            <h2 id="sp-table" className="panel-title">Recent {tt ? 'videos' : 'posts'}</h2>
+            <div className="table-wrap">
+              <table className="data" style={{ minWidth: 520 }}>
+                <thead><tr><th>{tt ? 'Video' : 'Post'}</th><th>Posted</th>{tt ? <th style={{ textAlign: 'right' }}>Views</th> : null}<th style={{ textAlign: 'right' }}>Likes</th><th style={{ textAlign: 'right' }}>Comments</th>{tt ? <th style={{ textAlign: 'right' }}>Shares</th> : null}</tr></thead>
+                <tbody>
+                  {posts.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.url && !demo ? <a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a> : p.title}</td>
+                      <td className="small" style={{ whiteSpace: 'nowrap' }}>{date(p.publishedAt)}</td>
+                      {tt ? <td style={{ textAlign: 'right' }}>{p.views == null ? '—' : fmt(p.views)}</td> : null}
+                      <td style={{ textAlign: 'right' }}>{p.likes == null ? '—' : fmt(p.likes)}</td>
+                      <td style={{ textAlign: 'right' }}>{p.comments == null ? '—' : fmt(p.comments)}</td>
+                      {tt ? <td style={{ textAlign: 'right' }}>{p.shares == null ? '—' : fmt(p.shares)}</td> : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      ) : <div className="card card-pad muted">No recent {tt ? 'videos' : 'posts'} to show yet.</div>}
+    </>
+  );
+}
+
 function SampleDashboard() {
   const sample = Array.from({ length: 14 }, (_, i) => ({ label: `${i + 1}`, value: 800 + Math.round(500 * Math.sin(i / 2) ** 2) + (i > 9 ? 900 : 0), detail: `Day ${i + 1}` }));
   return (
@@ -461,6 +543,28 @@ function SetupDialog({ info, onClose }: { info: PlatformInfo; onClose: () => voi
                 <li>Set <code>YOUTUBE_CLIENT_ID</code>, <code>YOUTUBE_CLIENT_SECRET</code> and <code>TOKEN_ENCRYPTION_KEY</code> (<code>openssl rand -base64 32</code>), then restart.</li>
               </ol>
               <p className="muted small" style={{ margin: 0 }}>Teguwaz asks only for read-only access. Each channel connects separately, so you can connect several.</p>
+            </>
+          ) : info.id === 'tiktok' ? (
+            <>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>Connecting works once this Teguwaz server has a TikTok app. One-time setup by the server owner:</p>
+              <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>At <strong>developers.tiktok.com</strong>, create an app and add <strong>Login Kit</strong> and the <strong>Display API</strong>.</li>
+                <li>Request the scopes <code>user.info.basic</code>, <code>user.info.profile</code>, <code>user.info.stats</code> and <code>video.list</code>.</li>
+                <li>Add the redirect URI <code>http://localhost:8080/api/channels/oauth/tiktok/callback</code> (or your server's address).</li>
+                <li>Set <code>TIKTOK_CLIENT_KEY</code>, <code>TIKTOK_CLIENT_SECRET</code> and <code>TOKEN_ENCRYPTION_KEY</code>, then restart.</li>
+              </ol>
+              <p className="muted small" style={{ margin: 0 }}>Until TikTok reviews and approves the app, only accounts you add as test users (sandbox) can connect.</p>
+            </>
+          ) : info.id === 'instagram' ? (
+            <>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>Connecting works once this Teguwaz server has a Meta app. One-time setup by the server owner:</p>
+              <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>At <strong>developers.facebook.com</strong>, create an app and add the <strong>Instagram</strong> product, using <em>API setup with Instagram login</em>.</li>
+                <li>Ask for <code>instagram_business_basic</code> and <code>instagram_business_manage_insights</code>.</li>
+                <li>Add the redirect URI <code>http://localhost:8080/api/channels/oauth/instagram/callback</code> (or your server's address).</li>
+                <li>Set <code>INSTAGRAM_APP_ID</code>, <code>INSTAGRAM_APP_SECRET</code> and <code>TOKEN_ENCRYPTION_KEY</code>, then restart.</li>
+              </ol>
+              <p className="muted small" style={{ margin: 0 }}>Works with Instagram Business and Creator accounts. Your own account works right away as an app tester; other people need Meta's app review.</p>
             </>
           ) : <p style={{ margin: 0, lineHeight: 1.6 }}>{info.setup}</p>}
           <button type="button" className="btn btn-primary" style={{ alignSelf: 'flex-end' }} onClick={onClose}>Got it</button>

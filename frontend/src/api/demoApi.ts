@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { TripInvite, TripMember, TripMemory, BookOrder, DeliveryMethod, PrintQuote, PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
+import type { SocialStats, TripInvite, TripMember, TripMemory, BookOrder, DeliveryMethod, PrintQuote, PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -80,8 +80,8 @@ recount();
 let books: Book[] = [];
 const PLATFORMS: PlatformInfo[] = [
   { id: 'youtube', name: 'YouTube', statsSupported: true, statsAvailable: true, publicStatsAvailable: true, setup: 'Create an OAuth client (Web application) in Google Cloud, enable the YouTube Data API v3 and YouTube Analytics API, then set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY on the backend.' },
-  { id: 'tiktok', name: 'TikTok', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'Stats coming next: needs a TikTok for Developers app approved for the Display API.' },
-  { id: 'instagram', name: 'Instagram', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: "Stats coming next: needs a Meta app with Instagram API access (Business or Creator accounts) and Meta's app review." },
+  { id: 'tiktok', name: 'TikTok', statsSupported: true, statsAvailable: true, publicStatsAvailable: false, setup: 'Create a TikTok for Developers app with Login Kit and the Display API, add the redirect URI, then set TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET and TOKEN_ENCRYPTION_KEY. Until TikTok approves the app, only accounts added as test users can connect.' },
+  { id: 'instagram', name: 'Instagram', statsSupported: true, statsAvailable: true, publicStatsAvailable: false, setup: 'Create a Meta app with "Instagram API with Instagram login", add the redirect URI, then set INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET and TOKEN_ENCRYPTION_KEY. Works for Instagram Business and Creator accounts; other people need Meta\'s app review.' },
   { id: 'facebook', name: 'Facebook', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: "Stats coming next: needs a Meta app with Pages access and Meta's app review." },
   { id: 'x', name: 'X (Twitter)', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
   { id: 'telegram', name: 'Telegram', statsSupported: false, statsAvailable: false, publicStatsAvailable: false, setup: 'This channel is saved as a link. Stats are not available for it.' },
@@ -308,6 +308,27 @@ export const demoApi: TeguwazApi = {
       fetchedAt: now(),
     };
     return delay(stats);
+  },
+  channelSocialStats: async (id) => {
+    const c = channels.find((x) => x.id === id);
+    if (!c?.connected) throw new Error('Connect this account first');
+    // Demo mode: SAMPLE numbers, labelled in the UI.
+    const tt = c.platform === 'tiktok';
+    const titles = ['Erta Ale at night', 'Injera taste test', 'Bale wolves spotted', 'Harar hyena feeding', 'Coffee ceremony ASMR', 'Omo valley drive'];
+    const recentPosts = titles.map((t, i) => ({ id: `p${i}`, title: t, url: null, thumbnailUrl: null, publishedAt: new Date(Date.now() - (i * 4 + 1) * 86400000).toISOString(),
+      views: tt ? [41000, 18200, 9600, 25300, 7100, 12800][i] : null, likes: [3200, 1400, 820, 2100, 510, 990][i], comments: [140, 85, 40, 120, 22, 61][i], shares: tt ? [380, 90, 35, 210, 12, 70][i] : null }));
+    const views = recentPosts.reduce((n, p) => n + (p.views ?? 0), 0);
+    const likes = recentPosts.reduce((n, p) => n + (p.likes ?? 0), 0);
+    const comments = recentPosts.reduce((n, p) => n + (p.comments ?? 0), 0);
+    const shares = recentPosts.reduce((n, p) => n + (p.shares ?? 0), 0);
+    const followers = tt ? 8600 : 3100;
+    return delay({
+      platform: tt ? 'tiktok' : 'instagram', accountName: c.name, handle: c.url.match(/@[\w.-]+/)?.[0] ?? `@${c.name.toLowerCase().replace(/\s+/g, '')}`,
+      avatarUrl: null, profileUrl: c.url, followers, following: tt ? 210 : 340, totalLikes: tt ? 152000 : null, posts: tt ? 74 : 128,
+      recentCount: recentPosts.length, recentViews: tt ? views : null, recentLikes: likes, recentComments: comments, recentShares: tt ? shares : null,
+      engagementRate: tt ? Math.round(((likes + comments + shares) * 1000) / views) / 10 : Math.round(((likes + comments) * 1000) / recentPosts.length / followers) / 10,
+      recentPosts, fetchedAt: now(), note: tt ? null : 'Engagement here is likes and comments per post, as a share of followers.',
+    } as SocialStats);
   },
   channelStats: async (id) => {
     const c = channels.find((x) => x.id === id);
