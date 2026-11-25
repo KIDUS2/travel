@@ -2,6 +2,8 @@ const env = import.meta.env;
 
 export const config = {
   demoMode: env.VITE_DEMO_MODE !== 'false',
+  /** Show "Continue with Google" (needs the Google identity provider configured in Keycloak). */
+  googleSignIn: env.VITE_GOOGLE_SIGNIN === 'true',
   apiBase: (env.VITE_API_BASE as string | undefined) ?? '',
   keycloak: {
     url: (env.VITE_KEYCLOAK_URL as string | undefined) ?? 'http://localhost:8180',

@@ -156,3 +156,14 @@ For your real channel:
 3. In Creator studio, add the channel with its link (`youtube.com/@handle`, `/channel/UC…` or `/user/name`) and open **View stats**.
 
 **Connect analytics** (the OAuth client above) adds private daily views and engagement, and only the channel owner can grant it.
+
+### Continue with Google
+
+Visitors land on a welcome page with **Continue with Google**, **Create a free account** and **Sign in with email**. Google sign-in goes through Keycloak, so the backend still receives a normal Keycloak token.
+
+1. In Google Cloud Console → Google Auth Platform → **Clients**, create (or reuse) a **Web application** client and add the redirect URI
+   `http://localhost:8180/realms/teguwaz/broker/google/endpoint` (use your Keycloak port and host).
+2. Start Keycloak with the client's values: `GOOGLE_CLIENT_ID=… GOOGLE_CLIENT_SECRET=… docker compose up -d keycloak`.
+3. Set `VITE_GOOGLE_SIGNIN=true` in `frontend/.env` and restart `npm run dev`.
+
+Keycloak only imports the realm file when the realm does not exist yet. If you already have a `teguwaz` realm, either delete it and restart Keycloak, or add the provider by hand: **Identity providers → Google**, paste the client ID and secret, and turn on **Trust email**.

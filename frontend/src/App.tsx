@@ -13,11 +13,12 @@ import { Creator } from './pages/Creator';
 import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
 import { Memories } from './pages/memories/Memories';
+import { Welcome } from './pages/Welcome';
 
 export function App() {
   return (
     <LangProvider>
-      <AuthProvider>
+      <AuthProvider publicContent={<BrowserRouter><PublicRoutes /></BrowserRouter>}>
         <MeProvider>
         <BrowserRouter>
           <Routes>
@@ -39,5 +40,15 @@ export function App() {
         </MeProvider>
       </AuthProvider>
     </LangProvider>
+  );
+}
+
+/** Pages anyone can open without an account. */
+function PublicRoutes() {
+  return (
+    <Routes>
+      <Route path="welcome" element={<Welcome />} />
+      <Route path="*" element={<Navigate to="/welcome" replace />} />
+    </Routes>
   );
 }

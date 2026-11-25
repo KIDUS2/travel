@@ -17,12 +17,13 @@ export function getKeycloak(): Keycloak {
 let initPromise: Promise<boolean> | null = null;
 
 /**
- * Starts Keycloak once. React StrictMode runs effects twice in development,
+ * Starts Keycloak once and checks for an existing session without forcing a login,
+ * so visitors see the welcome page first. React StrictMode runs effects twice in development,
  * and keycloak-js refuses a second init(), so every caller shares one promise.
  */
 export function initKeycloak(): Promise<boolean> {
   if (!initPromise) {
-    initPromise = getKeycloak().init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false });
+    initPromise = getKeycloak().init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false });
   }
   return initPromise;
 }
@@ -40,3 +41,9 @@ export async function getAccessToken(): Promise<string | null> {
   }
   return kc.token ?? null;
 }
+
+export const signIn = {
+  google: () => getKeycloak().login({ idpHint: 'google' }),
+  email: () => getKeycloak().login(),
+  register: () => getKeycloak().register(),
+};

@@ -24,6 +24,11 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      # "Continue with Google": Google OAuth client (Web application) with redirect URI
+      # http://localhost:${KEYCLOAK_PORT:-8180}/realms/teguwaz/broker/google/endpoint
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not-configured}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
+      TEGUWAZ_WEB_URL: ${TEGUWAZ_WEB_URL:-http://localhost:5173}
     ports:
       - "${KEYCLOAK_PORT:-8180}:${KEYCLOAK_PORT:-8180}"
     volumes:
