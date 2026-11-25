@@ -3,7 +3,8 @@ import { api } from '../../api/api';
 import { ApiError } from '../../api/client';
 import type { Memory, Privacy, Trip } from '../../api/types';
 import { Icon } from '../../components/Icon';
-import { ETHIOPIA_REGIONS } from '../../lib/regions';
+import { readPhotoMeta } from '../../lib/photoMeta';
+import { ETHIOPIA_REGIONS, regionName } from '../../lib/regions';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
 
 function localDateTimeValue(d: Date) {
@@ -33,6 +34,7 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [autoFill, setAutoFill] = useState<{ text: string; undo: () => void } | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,6 +54,43 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }:
       () => setError('Could not get your location. You can still save without it.'),
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  }
+
+  /** Fills place, region, GPS and date from the first photo that has EXIF data, without overwriting what the traveler typed. */
+  async function pickFiles(list: File[]) {
+    setFiles(list);
+    setAutoFill(null);
+    if (existing) return;
+    for (const f of list.filter((x) => x.type.startsWith('image/')).slice(0, 10)) {
+      const meta = await readPhotoMeta(f);
+      if (!meta.takenAt && meta.lat == null) continue;
+      const before = { placeName, regionCode, coords, happenedAt };
+      const parts: string[] = [];
+      if (meta.lat != null && meta.lng != null && !coords) {
+        setCoords({ lat: meta.lat, lng: meta.lng });
+        if (!placeName.trim() && meta.place?.placeName) { setPlaceName(meta.place.placeName); parts.push(meta.place.placeName); }
+        if (!regionCode && meta.place?.regionCode) {
+          setRegionCode(meta.place.regionCode);
+          const r = regionName(meta.place.regionCode);
+          if (r) parts.push(r.en);
+        }
+        if (!parts.length) parts.push('GPS location');
+      }
+      if (meta.takenAt) {
+        setHappenedAt(localDateTimeValue(meta.takenAt));
+        parts.push(meta.takenAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+      }
+      if (parts.length) {
+        setAutoFill({
+          text: `Filled from your photo: ${parts.join(' · ')}`,
+          undo: () => {
+            setPlaceName(before.placeName); setRegionCode(before.regionCode); setCoords(before.coords); setHappenedAt(before.happenedAt);
+            setAutoFill(null);
+          },
+        });
+      }
+      return;
+    }
   }
 
   async function submit(e: FormEvent) {
@@ -104,6 +143,18 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }:
 
           {error ? <div className="banner error">{error}</div> : null}
 
+          <label className="field">Photos, videos or voice notes <span className="muted small" style={{ fontWeight: 400 }}>· add photos first and Teguwaz fills in the place and date</span>
+            <input className="input" type="file" multiple accept="image/*,video/*,audio/*" style={{ paddingTop: 10 }}
+              onChange={(e) => void pickFiles(Array.from(e.target.files ?? []))} />
+            {files.length ? <span className="muted small" style={{ fontWeight: 400 }}>{files.length} file(s) will be uploaded</span> : null}
+          </label>
+          {autoFill ? (
+            <div className="banner success" role="status" style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+              <span><Icon name="pin" size={16} /> {autoFill.text}</span>
+              <button type="button" className="btn" style={{ minHeight: 34 }} onClick={autoFill.undo}>Undo</button>
+            </div>
+          ) : null}
+
           <label className="field">Title
             <input ref={titleRef} className="input" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Bete Giyorgis at sunrise" aria-invalid={!!fieldErrors.title} />
@@ -154,12 +205,6 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }:
             </div>
             <span className="muted small" style={{ fontWeight: 400 }}>{PRIVACY_LABEL[privacy].hint}</span>
           </div>
-
-          <label className="field">Photos, videos or voice notes
-            <input className="input" type="file" multiple accept="image/*,video/*,audio/*" style={{ paddingTop: 10 }}
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
-            {files.length ? <span className="muted small" style={{ fontWeight: 400 }}>{files.length} file(s) will be uploaded</span> : null}
-          </label>
 
           <div className="pills" style={{ justifyContent: 'flex-end', borderTop: '1px solid var(--line)', paddingTop: 16 }}>
             <button type="button" className="btn" onClick={onClose}>Cancel</button>

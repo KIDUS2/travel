@@ -8,6 +8,7 @@ import { formatEthiopianAm, formatEthiopianShortAm } from '../../lib/ethiopianDa
 import { regionName } from '../../lib/regions';
 import { useAsync } from '../../lib/useAsync';
 import { MemoryForm } from './MemoryForm';
+import { PhotoImport } from './PhotoImport';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
 
 const DAY_COLORS = ['var(--flag-green)', 'var(--flag-yellow)', 'var(--flag-red)'];
@@ -17,6 +18,7 @@ export function Memories() {
   const [tripFilter, setTripFilter] = useState<string>('');
   const [showForm, setShowForm] = useState(params.get('new') === '1');
   const [editing, setEditing] = useState<Memory | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const tripsQ = useAsync(() => api.listTrips(), []);
   const memQ = useAsync(() => api.listMemories({ tripId: tripFilter || undefined, size: 100 }), [tripFilter]);
@@ -67,6 +69,7 @@ export function Memories() {
         actions={
           <>
             <Link to="/books" className="btn"><Icon name="book" size={18} />Make a book</Link>
+            <button type="button" className="btn" onClick={() => setImporting(true)}><Icon name="photo" size={18} />Import photos</button>
             <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}><Icon name="plus" size={18} stroke={2.6} />New memory</button>
           </>
         }
@@ -89,7 +92,10 @@ export function Memories() {
       {!memQ.loading && !memories.length ? (
         <div className="card empty">
           <p style={{ fontSize: 17, margin: '0 0 12px', color: 'var(--ink)' }}>No memories here yet.</p>
-          <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>Save your first memory</button>
+          <div className="pills" style={{ justifyContent: 'center' }}>
+            <button type="button" className="btn btn-primary" onClick={() => setImporting(true)}><Icon name="photo" size={18} />Import photos from a trip</button>
+            <button type="button" className="btn" onClick={() => setShowForm(true)}>Write a memory</button>
+          </div>
         </div>
       ) : null}
 
@@ -125,6 +131,10 @@ export function Memories() {
         </div>
       ) : null}
 
+      {importing ? (
+        <PhotoImport trips={trips} onClose={() => setImporting(false)}
+          onDone={(tid) => { setImporting(false); void tripsQ.reload(); if (tid) setTripFilter(tid); void memQ.reload(); }} />
+      ) : null}
       {showForm || editing ? (
         <MemoryForm trips={trips} defaultTripId={tripFilter || undefined} existing={editing ?? undefined}
           onClose={() => { setShowForm(false); setEditing(null); setParams((p) => { p.delete('new'); return p; }, { replace: true }); }}

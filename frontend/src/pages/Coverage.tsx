@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { ExploreMap } from '../components/ExploreMap';
 import { PageHeader } from '../components/PageHeader';
 import { computeCoverage } from '../lib/coverage';
+import { countryAt } from '../lib/places';
 import { ETHIOPIA_REGIONS } from '../lib/regions';
 import { useAsync } from '../lib/useAsync';
 import { FlagProgress } from './Home';
@@ -33,6 +34,11 @@ export function Coverage() {
   const visitedCountryIds = useMemo(() => {
     const ids = new Set<string>();
     for (const m of memories) {
+      // A photo's GPS names the country anywhere in the world; the region code is the fallback.
+      if (m.latitude != null && m.longitude != null) {
+        const c = countryAt(m.latitude, m.longitude);
+        if (c) { ids.add(c.id); continue; }
+      }
       const alpha2 = m.regionCode?.slice(0, 2).toUpperCase();
       if (alpha2 && COUNTRY_NUMERIC[alpha2]) ids.add(COUNTRY_NUMERIC[alpha2]);
     }
