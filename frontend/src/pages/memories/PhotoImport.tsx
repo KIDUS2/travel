@@ -4,6 +4,9 @@ import type { Privacy, Trip } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { groupPhotos, readPhotoMeta, suggestTitle, type PhotoGroup } from '../../lib/photoMeta';
 import { regionName } from '../../lib/regions';
+import { prepareForUpload } from '../../offline/compress';
+import { uploadBlock } from '../../offline/network';
+import { enqueueMemory } from '../../offline/outbox';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
 
 interface Draft {
@@ -18,7 +21,7 @@ const NEW_TRIP = '__new__';
  * Import many photos at once. Teguwaz reads each photo's date and GPS,
  * groups them into one memory per day and place, and names the place.
  */
-export function PhotoImport({ trips, onClose, onDone }: { trips: Trip[]; onClose: () => void; onDone: (tripId: string | null) => void }) {
+export function PhotoImport({ trips, onClose, onDone, onQueued }: { trips: Trip[]; onClose: () => void; onDone: (tripId: string | null) => void; onQueued?: () => void }) {
   const [reading, setReading] = useState<{ done: number; total: number } | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [tripId, setTripId] = useState<string>(NEW_TRIP);
@@ -62,37 +65,67 @@ export function PhotoImport({ trips, onClose, onDone }: { trips: Trip[]; onClose
   const chosen = drafts.filter((d) => d.include);
   const photoCount = chosen.reduce((n, d) => n + d.group.photos.length, 0);
 
+  const days = () => chosen.map((d) => d.group.day).filter((d) => d !== 'unknown').sort();
+  const memoryInput = (d: Draft, tripIdValue: string | null) => ({
+    clientId: crypto.randomUUID(),
+    tripId: tripIdValue,
+    title: d.title.trim() || 'Photos',
+    placeName: d.group.place?.placeName ?? null,
+    regionCode: d.group.place?.regionCode ?? null,
+    latitude: d.group.lat,
+    longitude: d.group.lng,
+    happenedAt: (d.group.start ?? new Date()).toISOString(),
+    privacy,
+  });
+
+  /** Keeps memories on this device until they can upload (offline, or Wi-Fi only on mobile data). */
+  async function queue(from: number, tripIdValue: string | null, firstFilesDone = 0, createdInputs: Map<number, ReturnType<typeof memoryInput>> = new Map()) {
+    const newTrip = tripIdValue == null && tripId === NEW_TRIP
+      ? { key: crypto.randomUUID(), input: { name: tripName.trim() || 'New trip', startDate: days()[0] ?? null, endDate: days()[days().length - 1] ?? null } }
+      : undefined;
+    for (let i = from; i < chosen.length; i++) {
+      const input = createdInputs.get(i) ?? memoryInput(chosen[i], tripIdValue ?? (tripId === NEW_TRIP ? null : tripId || null));
+      const files = chosen[i].group.photos.map((p) => p.file).slice(i === from ? firstFilesDone : 0);
+      await enqueueMemory(input, files, newTrip);
+    }
+    (onQueued ?? onClose)();
+  }
+
   async function save() {
-    setSaving({ done: 0, total: photoCount });
     setError(null);
+    if (uploadBlock()) {
+      setSaving({ done: 0, total: photoCount });
+      await queue(0, null);
+      return;
+    }
+    setSaving({ done: 0, total: photoCount });
+    let targetTrip: string | null = tripId === NEW_TRIP ? null : tripId || null;
+    let index = 0;
+    let filesDone = 0;
+    const inputs = new Map<number, ReturnType<typeof memoryInput>>();
     try {
-      let targetTrip: string | null = tripId || null;
       if (tripId === NEW_TRIP) {
-        const days = chosen.map((d) => d.group.day).filter((d) => d !== 'unknown').sort();
-        const trip = await api.createTrip({ name: tripName.trim() || 'New trip', startDate: days[0] ?? null, endDate: days[days.length - 1] ?? null });
+        const trip = await api.createTrip({ name: tripName.trim() || 'New trip', startDate: days()[0] ?? null, endDate: days()[days().length - 1] ?? null });
         targetTrip = trip.id;
       }
-      for (const d of chosen) {
-        const g = d.group;
-        const memory = await api.createMemory({
-          clientId: crypto.randomUUID(),
-          tripId: targetTrip,
-          title: d.title.trim() || 'Photos',
-          placeName: g.place?.placeName ?? null,
-          regionCode: g.place?.regionCode ?? null,
-          latitude: g.lat,
-          longitude: g.lng,
-          happenedAt: (g.start ?? new Date()).toISOString(),
-          privacy,
-        });
-        for (const p of g.photos) {
-          await api.uploadMedia(memory.id, p.file);
+      for (index = 0; index < chosen.length; index++) {
+        const input = memoryInput(chosen[index], targetTrip);
+        inputs.set(index, input);
+        filesDone = 0;
+        const memory = await api.createMemory(input);
+        for (const p of chosen[index].group.photos) {
+          await api.uploadMedia(memory.id, await prepareForUpload(p.file));
+          filesDone += 1;
           setSaving((s) => s && { ...s, done: s.done + 1 });
         }
       }
       onDone(targetTrip);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Check your connection and try again.');
+      if (e instanceof TypeError) {
+        await queue(index, targetTrip, filesDone, inputs);
+        return;
+      }
+      setError(e instanceof Error ? e.message : 'Could not save. Try again.');
       setSaving(null);
     }
   }

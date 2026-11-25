@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { InstallAppCard, UploadSettingsCard } from '../offline/OfflineUi';
 import { Link } from 'react-router-dom';
 import { api } from '../api/api';
 import { ApiError } from '../api/client';
@@ -86,6 +87,9 @@ export function Account() {
             {me ? <span className="muted small">Member since {new Date(me.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · <span className="am">{formatEthiopianAm(new Date(me.createdAt))}</span></span> : null}
             {isAdmin ? <Link to="/admin/users" className="btn"><Icon name="users" size={18} />Manage users</Link> : null}
           </section>
+
+          <UploadSettingsCard />
+          <InstallAppCard />
 
           <section className="card card-pad stack" aria-labelledby="sec">
             <h2 id="sec" className="section-title" style={{ fontSize: 18 }}>Sign-in &amp; security</h2>

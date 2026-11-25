@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/api';
 import type { Memory, Privacy, Trip } from '../../api/types';
@@ -9,6 +9,8 @@ import { regionName } from '../../lib/regions';
 import { useAsync } from '../../lib/useAsync';
 import { MemoryForm } from './MemoryForm';
 import { PhotoImport } from './PhotoImport';
+import { PendingUploads } from '../../offline/OfflineUi';
+import { onSynced } from '../../offline/outbox';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
 
 const DAY_COLORS = ['var(--flag-green)', 'var(--flag-yellow)', 'var(--flag-red)'];
@@ -22,6 +24,9 @@ export function Memories() {
 
   const tripsQ = useAsync(() => api.listTrips(), []);
   const memQ = useAsync(() => api.listMemories({ tripId: tripFilter || undefined, size: 100 }), [tripFilter]);
+
+  // Refresh when memories saved offline reach the server.
+  useEffect(() => onSynced(() => { void memQ.reload(); void tripsQ.reload(); }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const trips = tripsQ.data ?? [];
   const memories = memQ.data?.items ?? [];
@@ -85,6 +90,8 @@ export function Memories() {
         <NewTripButton onCreated={(t) => { void tripsQ.reload(); setTripFilter(t.id); }} />
       </div>
 
+      <PendingUploads />
+
       {memQ.error ? <div className="banner error">{memQ.error}</div> : null}
 
       {memQ.loading && !memories.length ? <p className="muted">Loading memories…</p> : null}
@@ -133,12 +140,14 @@ export function Memories() {
 
       {importing ? (
         <PhotoImport trips={trips} onClose={() => setImporting(false)}
-          onDone={(tid) => { setImporting(false); void tripsQ.reload(); if (tid) setTripFilter(tid); void memQ.reload(); }} />
+          onDone={(tid) => { setImporting(false); void tripsQ.reload(); if (tid) setTripFilter(tid); void memQ.reload(); }}
+          onQueued={() => setImporting(false)} />
       ) : null}
       {showForm || editing ? (
         <MemoryForm trips={trips} defaultTripId={tripFilter || undefined} existing={editing ?? undefined}
           onClose={() => { setShowForm(false); setEditing(null); setParams((p) => { p.delete('new'); return p; }, { replace: true }); }}
-          onSaved={onSaved} />
+          onSaved={onSaved}
+          onQueued={() => { setShowForm(false); setEditing(null); setParams((p) => { p.delete('new'); return p; }, { replace: true }); }} />
       ) : null}
     </>
   );

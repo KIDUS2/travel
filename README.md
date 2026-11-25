@@ -167,3 +167,11 @@ Visitors land on a welcome page with **Continue with Google**, **Create a free a
 3. Set `VITE_GOOGLE_SIGNIN=true` in `frontend/.env` and restart `npm run dev`.
 
 Keycloak only imports the realm file when the realm does not exist yet. If you already have a `teguwaz` realm, either delete it and restart Keycloak, or add the provider by hand: **Identity providers → Google**, paste the client ID and secret, and turn on **Trust email**.
+
+### Offline and Wi-Fi-only uploads
+
+Teguwaz is a Progressive Web App: in a production build (`npm run build`) a service worker caches the app and your last-seen memories, so it opens without a connection and can be installed on a phone's home screen.
+
+- New memories and photo imports made offline are kept on the device (IndexedDB outbox) and upload by themselves when the connection is back. Creating a memory is idempotent (`clientId`), so retries never duplicate.
+- **Account → Uploads & data**: *Only on Wi-Fi* holds uploads on mobile data (Android Chrome reports the connection type; other browsers upload anyway), and *Data saver* shrinks photos to 2048 px before upload, which also strips the photo's GPS data from the uploaded file.
+- Signing out clears cached data from the device and warns if memories have not uploaded yet.

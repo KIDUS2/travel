@@ -4,6 +4,9 @@ import { ApiError } from '../../api/client';
 import type { Memory, Privacy, Trip } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { readPhotoMeta } from '../../lib/photoMeta';
+import { prepareForUpload } from '../../offline/compress';
+import { uploadBlock } from '../../offline/network';
+import { enqueueMemory } from '../../offline/outbox';
 import { ETHIOPIA_REGIONS, regionName } from '../../lib/regions';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
 
@@ -12,12 +15,14 @@ function localDateTimeValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }: {
+export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved, onQueued }: {
   trips: Trip[];
   defaultTripId?: string;
   existing?: Memory;
   onClose: () => void;
   onSaved: (m: Memory) => void;
+  /** Saved on this device because there is no connection (or Wi-Fi-only on mobile data). */
+  onQueued?: () => void;
 }) {
   const [clientId] = useState(() => existing?.clientId ?? crypto.randomUUID());
   const [title, setTitle] = useState(existing?.title ?? '');
@@ -110,19 +115,34 @@ export function MemoryForm({ trips, defaultTripId, existing, onClose, onSaved }:
       happenedAt: new Date(happenedAt).toISOString(),
       privacy,
     };
+    // New memories never get lost: without a usable connection they wait in the outbox.
+    if (!existing && uploadBlock()) {
+      await enqueueMemory(input, files);
+      setBusy(false);
+      (onQueued ?? onClose)();
+      return;
+    }
+    let uploaded = 0;
     try {
       let saved = existing ? await api.updateMemory(existing.id, input) : await api.createMemory(input);
       for (const f of files) {
-        await api.uploadMedia(saved.id, f);
+        await api.uploadMedia(saved.id, await prepareForUpload(f));
+        uploaded += 1;
       }
       if (files.length) saved = await api.getMemory(saved.id);
       onSaved(saved);
     } catch (err) {
+      if (!existing && err instanceof TypeError) {
+        // The connection dropped: keep the rest on this device (creating again is safe, it reuses clientId).
+        await enqueueMemory(input, files.slice(uploaded));
+        (onQueued ?? onClose)();
+        return;
+      }
       if (err instanceof ApiError) {
         setError(err.message);
         setFieldErrors(err.fields);
       } else {
-        setError('Could not save. Check your connection and try again.');
+        setError(existing ? 'Editing needs a connection. Try again when you are online.' : 'Could not save. Try again.');
       }
     } finally {
       setBusy(false);

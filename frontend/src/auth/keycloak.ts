@@ -36,6 +36,8 @@ export async function getAccessToken(): Promise<string | null> {
   try {
     await kc.updateToken(30);
   } catch {
+    // Offline: keep the current token; the request will fail and the outbox retries later.
+    if (!navigator.onLine) return kc.token ?? null;
     await kc.login();
     return null;
   }

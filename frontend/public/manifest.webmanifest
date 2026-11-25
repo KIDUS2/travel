@@ -1,0 +1,17 @@
+{
+  "name": "Teguwaz · ተጓዥ",
+  "short_name": "Teguwaz",
+  "description": "Travel memories, coverage maps and photo books. Made in Ethiopia, for travelers everywhere.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B3D23",
+  "theme_color": "#0B3D23",
+  "lang": "en",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

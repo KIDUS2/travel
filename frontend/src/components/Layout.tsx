@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useMe } from '../auth/MeProvider';
 import { config } from '../config';
 import { useBi, useLang } from '../lib/i18n';
+import { ConnectionBanner } from '../offline/OfflineUi';
+import { startOutbox, useOutbox } from '../offline/outbox';
 import { Icon } from './Icon';
 import { TeguwazLogo } from './TeguwazLogo';
 
@@ -17,7 +20,14 @@ const NAV = [
 ];
 
 export function Layout() {
-  const { name: authName, logout } = useAuth();
+  const { name: authName, logout: signOut, offline } = useAuth();
+  const outbox = useOutbox();
+  useEffect(() => { startOutbox(); }, []);
+  const logout = () => {
+    const n = outbox.items.length;
+    if (n && !window.confirm(`${n} memor${n === 1 ? 'y has' : 'ies have'} not uploaded yet. Signing out removes ${n === 1 ? 'it' : 'them'} from this phone. Sign out anyway?`)) return;
+    signOut();
+  };
   const { me, isAdmin } = useMe();
   const name = me?.displayName || authName;
   const nav = isAdmin ? [...NAV, { to: '/admin/users', icon: 'users', en: 'Users', am: 'ተጠቃሚዎች' }] : NAV;
@@ -55,7 +65,9 @@ export function Layout() {
               <NavLink to="/account" className="avatar" aria-label="My account" style={{ textDecoration: 'none' }}>{name.charAt(0).toUpperCase()}</NavLink>
               <span style={{ display: 'flex', flexDirection: 'column', fontSize: 14, minWidth: 0, flex: 1 }}>
                 <NavLink to="/account" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none' }}>{name}</NavLink>
-                {config.demoMode ? (
+                {offline ? (
+                  <span style={{ color: 'var(--on-dark-faint)', fontSize: 13 }}>Offline</span>
+                ) : config.demoMode ? (
                   <span style={{ color: 'var(--on-dark-faint)', fontSize: 13 }}>Demo mode</span>
                 ) : (
                   <button type="button" onClick={logout}
@@ -69,6 +81,7 @@ export function Layout() {
         </div>
       </nav>
       <main className="main">
+        <ConnectionBanner />
         <Outlet />
       </main>
     </div>

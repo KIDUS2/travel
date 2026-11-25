@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { config } from '../config';
+import { clearOfflineData, LAST_USER_KEY } from '../offline/pwa';
 import { Welcome } from '../pages/Welcome';
 import { getKeycloak, initKeycloak } from './keycloak';
 
@@ -7,9 +8,15 @@ interface AuthState {
   ready: boolean;
   name: string;
   logout: () => void;
+  /** Opened without a connection using the last signed-in profile; uploads wait in the outbox. */
+  offline?: boolean;
 }
 
 const AuthContext = createContext<AuthState>({ ready: false, name: '', logout: () => {} });
+
+function lastUser(): { name: string } | null {
+  try { return JSON.parse(localStorage.getItem(LAST_USER_KEY) ?? 'null') as { name: string } | null; } catch { return null; }
+}
 
 /** Paths anyone can open without signing in (welcome, privacy policy, terms, shared-trip invites). */
 export const PUBLIC_PATHS = ['/welcome', '/privacy', '/terms'];
@@ -25,6 +32,14 @@ export function AuthProvider({ children, publicContent }: { children: ReactNode;
 
   useEffect(() => {
     if (config.demoMode) return;
+    const remembered = lastUser();
+    if (!navigator.onLine && remembered) {
+      // No connection: open the app with the cached profile instead of a sign-in error.
+      setState({ ready: true, offline: true, name: remembered.name, logout: () => {} });
+      const reconnect = () => window.location.reload();
+      window.addEventListener('online', reconnect, { once: true });
+      return () => window.removeEventListener('online', reconnect);
+    }
     const kc = getKeycloak();
     initKeycloak()
       .then((authenticated) => {
@@ -33,10 +48,12 @@ export function AuthProvider({ children, publicContent }: { children: ReactNode;
           return;
         }
         const parsed = kc.tokenParsed as { name?: string; preferred_username?: string; email?: string } | undefined;
+        const name = parsed?.name || parsed?.preferred_username || parsed?.email || 'Traveler';
+        try { localStorage.setItem(LAST_USER_KEY, JSON.stringify({ name })); } catch { /* ignore */ }
         setState({
           ready: true,
-          name: parsed?.name || parsed?.preferred_username || parsed?.email || 'Traveler',
-          logout: () => kc.logout({ redirectUri: `${window.location.origin}/welcome` }),
+          name,
+          logout: () => { void clearOfflineData().then(() => kc.logout({ redirectUri: `${window.location.origin}/welcome` })); },
         });
       })
       .catch((e: unknown) => {
