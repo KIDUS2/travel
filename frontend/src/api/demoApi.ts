@@ -3,7 +3,7 @@
  * UI can be tried without Postgres, Keycloak or MinIO. Data lives in memory only.
  */
 import type { TeguwazApi } from './api';
-import type { BookOrder, DeliveryMethod, PrintQuote, PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
+import type { TripInvite, TripMember, TripMemory, BookOrder, DeliveryMethod, PrintQuote, PublicStats, AdminUser, Book, Privacy, BookPhoto, Channel, Me, Media, Memory, MemoryInput, Platform, PlatformInfo, Trip, YouTubeStats } from './types';
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -11,9 +11,11 @@ const now = () => new Date().toISOString();
 const northern = uid();
 const danakil = uid();
 
+const harar = 'trip-harar';
 const trips: Trip[] = [
-  { id: northern, name: 'Northern Historic Route', description: null, startDate: '2026-10-26', endDate: '2026-11-04', memoryCount: 0 },
-  { id: danakil, name: 'Danakil expedition', description: null, startDate: '2026-10-10', endDate: '2026-10-13', memoryCount: 0 },
+  { id: northern, name: 'Northern Historic Route', description: null, startDate: '2026-10-26', endDate: '2026-11-04', memoryCount: 0, role: 'OWNER', ownerName: 'Meron T.', memberCount: 1 },
+  { id: danakil, name: 'Danakil expedition', description: null, startDate: '2026-10-10', endDate: '2026-10-13', memoryCount: 0, role: 'OWNER', ownerName: 'Meron T.', memberCount: 0 },
+  { id: harar, name: 'Harar with the Bekele family', description: null, startDate: '2026-09-20', endDate: '2026-09-23', memoryCount: 0, role: 'EDITOR', ownerName: 'Selam B.', memberCount: 3 },
 ];
 
 function seed(tripId: string, title: string, placeName: string, regionCode: string, lat: number, lng: number,
@@ -134,6 +136,25 @@ function find(id: string): Memory {
 
 let defaultPrivacy: Privacy = 'PRIVATE';
 let orders: BookOrder[] = [];
+// Shared-trip demo: memories other members added (they never appear in your own vault).
+const othersMemories: TripMemory[] = [
+  { memory: { ...seed(harar, 'Feeding the hyenas at night', 'Harar', 'ET-HA', 9.31, 42.13, '2026-09-20T18:30:00Z', 'FAMILY', 'Yusuf held the stick out with meat and the hyena came right up to him.') }, authorId: 'selam', authorName: 'Selam B.', mine: false },
+  { memory: { ...seed(harar, 'Jugol walls, Shoa gate', 'Harar', 'ET-HA', 9.311, 42.12, '2026-09-21T09:00:00Z', 'PUBLIC', 'Painted houses and narrow lanes; we got lost on purpose.') }, authorId: 'dawit', authorName: 'Dawit B.', mine: false },
+];
+let members: Record<string, TripMember[]> = {
+  [northern]: [
+    { userId: 'demo', name: 'Meron T.', role: 'OWNER', you: true, joinedAt: '2026-10-01T00:00:00Z' },
+    { userId: 'abebe', name: 'Abebe K.', role: 'EDITOR', you: false, joinedAt: '2026-10-20T00:00:00Z' },
+  ],
+  [danakil]: [{ userId: 'demo', name: 'Meron T.', role: 'OWNER', you: true, joinedAt: '2026-10-01T00:00:00Z' }],
+  [harar]: [
+    { userId: 'selam', name: 'Selam B.', role: 'OWNER', you: false, joinedAt: '2026-09-01T00:00:00Z' },
+    { userId: 'dawit', name: 'Dawit B.', role: 'EDITOR', you: false, joinedAt: '2026-09-02T00:00:00Z' },
+    { userId: 'demo', name: 'Meron T.', role: 'EDITOR', you: true, joinedAt: '2026-09-05T00:00:00Z' },
+    { userId: 'hana', name: 'Hana B.', role: 'VIEWER', you: false, joinedAt: '2026-09-06T00:00:00Z' },
+  ],
+};
+let invites: Record<string, TripInvite[]> = {};
 const DEMO_PRICES = {
   base: { 'a4-landscape': 1800, 'a4-portrait': 1800, 'a5-portrait': 950, square: 1500 } as Record<string, number>,
   extra: { 'a4-landscape': 40, 'a4-portrait': 40, 'a5-portrait': 25, square: 35 } as Record<string, number>,
@@ -149,11 +170,12 @@ function demoQuote(book: Book, copies: number, delivery: DeliveryMethod): PrintQ
 
 export const demoApi: TeguwazApi = {
   me: () => delay(me),
-  listTrips: () => delay(trips),
+  listTrips: () => delay(trips.map((t) => ({ ...t, memoryCount: memories.filter((m) => m.tripId === t.id).length + othersMemories.filter((o) => o.memory.tripId === t.id).length }))),
   createTrip: async (input) => {
     const t: Trip = { id: uid(), name: input.name, description: input.description ?? null, startDate: input.startDate ?? null,
-      endDate: input.endDate ?? null, memoryCount: 0 };
+      endDate: input.endDate ?? null, memoryCount: 0, role: 'OWNER', ownerName: me.displayName, memberCount: 0 };
     trips.unshift(t);
+    members[t.id] = [{ userId: 'demo', name: me.displayName ?? 'You', role: 'OWNER', you: true, joinedAt: now() }];
     return delay(t);
   },
   listMemories: async ({ tripId, page = 0, size = 50 } = {}) => {
@@ -354,6 +376,36 @@ export const demoApi: TeguwazApi = {
     return delay({ ...o });
   },
   adminOrders: async (status) => delay(status ? orders.filter((o) => o.status === status) : orders),
+  tripMembers: async (tripId) => delay(members[tripId] ?? []),
+  changeMemberRole: async (tripId, userId, role) => {
+    members[tripId] = (members[tripId] ?? []).map((m) => (m.userId === userId ? { ...m, role } : m));
+    return delay(undefined);
+  },
+  removeMember: async (tripId, userId) => {
+    members[tripId] = (members[tripId] ?? []).filter((m) => m.userId !== userId);
+    const t = trips.find((x) => x.id === tripId);
+    if (t) t.memberCount = Math.max(0, (members[tripId]?.length ?? 1) - 1);
+    if (userId === 'demo') { const i = trips.findIndex((x) => x.id === tripId); if (i >= 0) trips.splice(i, 1); }
+    return delay(undefined);
+  },
+  tripInvites: async (tripId) => delay(invites[tripId] ?? []),
+  createInvite: async (tripId, role) => {
+    const inv = { id: uid(), role, expiresAt: new Date(Date.now() + 14 * 86400000).toISOString(), uses: 0, createdAt: now() };
+    invites[tripId] = [inv, ...(invites[tripId] ?? [])];
+    return delay({ id: inv.id, token: `demo-${tripId}-${inv.id}`.slice(0, 40), role, expiresAt: inv.expiresAt });
+  },
+  revokeInvite: async (tripId, inviteId) => {
+    invites[tripId] = (invites[tripId] ?? []).filter((i) => i.id !== inviteId);
+    return delay(undefined);
+  },
+  tripFeed: async (tripId) => {
+    const mine = memories.filter((m) => m.tripId === tripId).map((memory) => ({ memory, authorId: 'demo', authorName: 'Meron T.', mine: true }));
+    const items = [...mine, ...othersMemories.filter((o) => o.memory.tripId === tripId)]
+      .sort((a, b) => a.memory.happenedAt.localeCompare(b.memory.happenedAt));
+    return delay({ items, total: items.length });
+  },
+  invitePreview: async () => delay({ tripId: harar, tripName: 'Harar with the Bekele family', ownerName: 'Selam B.', role: 'EDITOR', alreadyMember: true, expired: false }),
+  acceptInvite: async () => delay({ tripId: harar }),
   adminOrderPrintFile: async (id) => {
     const o = orders.find((x) => x.id === id);
     if (!o?.bookId) throw new Error('Order not found');

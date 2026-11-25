@@ -4,6 +4,7 @@ import { api } from '../../api/api';
 import type { Book, BookPage, BookSettings, BookSummary, BookType } from '../../api/types';
 import { useAuth } from '../../auth/AuthProvider';
 import { Icon } from '../../components/Icon';
+import { memoriesForBook, tripMemories as loadTripMemories } from '../../lib/memoriesForBook';
 import { PageHeader } from '../../components/PageHeader';
 import { formatEthiopianAm } from '../../lib/ethiopianDate';
 import { useAsync } from '../../lib/useAsync';
@@ -37,7 +38,7 @@ export function Books() {
   const [opening, setOpening] = useState<string | null>(null);
   const createRef = useRef<HTMLElement>(null);
 
-  const tripMemQ = useAsync(() => api.listMemories({ tripId: tripId || undefined, size: 100 }), [tripId]);
+  const tripMemQ = useAsync(async () => ({ items: await loadTripMemories(tripId || null) }), [tripId]);
   const trips = tripsQ.data ?? [];
   const books = booksQ.data ?? [];
   const chosen = BOOK_TYPES.find((t) => t.id === type)!;
@@ -74,7 +75,8 @@ export function Books() {
   async function openPreview(b: BookSummary) {
     setOpening(b.id);
     try {
-      const [book, photos, mems] = await Promise.all([api.getBook(b.id), api.listBookPhotos(b.id), api.listMemories({ size: 100 })]);
+      const [book, photos, memList] = await Promise.all([api.getBook(b.id), api.listBookPhotos(b.id), memoriesForBook(b.tripId)]);
+      const mems = { items: memList };
       setPreview({ book, ctx: buildPageContext(mems.items, photos, book.tripId) });
     } finally {
       setOpening(null);

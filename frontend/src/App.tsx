@@ -16,6 +16,7 @@ import { Memories } from './pages/memories/Memories';
 import { PrivacyPolicy, Terms } from './pages/legal/Legal';
 import { Welcome } from './pages/Welcome';
 import { AdminOrders } from './pages/AdminOrders';
+import { JoinTrip } from './pages/JoinTrip';
 import { AdminOrderPrint } from './pages/AdminOrderPrint';
 import { OrderDetail, Orders } from './pages/orders/Orders';
 
@@ -40,6 +41,7 @@ export function App() {
               <Route path="admin/users" element={<AdminUsers />} />
               <Route path="admin/orders" element={<AdminOrders />} />
               <Route path="orders" element={<Orders />} />
+              <Route path="join/:token" element={<JoinTrip />} />
               <Route path="orders/:id" element={<OrderDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

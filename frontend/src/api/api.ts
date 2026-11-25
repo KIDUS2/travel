@@ -1,7 +1,7 @@
 import { config } from '../config';
 import { request } from './client';
 import { demoApi } from './demoApi';
-import type { PrintFile, BookOrder, DeliveryMethod, OrderInput, OrderStatus, PrintingInfo, PrintQuote, DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
+import type { InvitePreview, NewTripInvite, TripFeed, TripInvite, TripMember, PrintFile, BookOrder, DeliveryMethod, OrderInput, OrderStatus, PrintingInfo, PrintQuote, DeletionResult, PrivacySettings, PublicStats, AdminSummary, AdminUser, Book, BookInput, BookPhoto, BookSummary, Channel, ChannelInput, PlatformInfo, YouTubeStats, Me, Media, Memory, MemoryInput, Page, Privacy, Trip, TripInput } from './types';
 
 export interface TeguwazApi {
   me(): Promise<Me>;
@@ -51,6 +51,17 @@ export interface TeguwazApi {
   adminOrders(status?: OrderStatus): Promise<BookOrder[]>;
   adminUpdateOrder(id: string, status: OrderStatus, note?: string): Promise<BookOrder>;
   adminOrderPrintFile(id: string): Promise<PrintFile>;
+  tripMembers(tripId: string): Promise<TripMember[]>;
+  changeMemberRole(tripId: string, userId: string, role: 'EDITOR' | 'VIEWER'): Promise<void>;
+  /** The owner removes someone, or pass your own id to leave the trip. */
+  removeMember(tripId: string, userId: string): Promise<void>;
+  tripInvites(tripId: string): Promise<TripInvite[]>;
+  createInvite(tripId: string, role: 'EDITOR' | 'VIEWER'): Promise<NewTripInvite>;
+  revokeInvite(tripId: string, inviteId: string): Promise<void>;
+  /** Everything in a trip you can see: yours, plus members' Family and Public memories. */
+  tripFeed(tripId: string): Promise<TripFeed>;
+  invitePreview(token: string): Promise<InvitePreview>;
+  acceptInvite(token: string): Promise<{ tripId: string }>;
 }
 
 const httpApi: TeguwazApi = {
@@ -113,6 +124,15 @@ const httpApi: TeguwazApi = {
   listOrders: () => request('/api/orders', { cache: 'no-store' }),
   getOrder: (id) => request(`/api/orders/${id}`, { cache: 'no-store' }),
   adminOrders: (status) => request(`/api/admin/orders${status ? `?status=${status}` : ''}`, { cache: 'no-store' }),
+  tripMembers: (tripId) => request(`/api/trips/${tripId}/members`),
+  changeMemberRole: (tripId, userId, role) => request(`/api/trips/${tripId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  removeMember: (tripId, userId) => request(`/api/trips/${tripId}/members/${userId}`, { method: 'DELETE' }),
+  tripInvites: (tripId) => request(`/api/trips/${tripId}/invites`, { cache: 'no-store' }),
+  createInvite: (tripId, role) => request(`/api/trips/${tripId}/invites`, { method: 'POST', body: JSON.stringify({ role }) }),
+  revokeInvite: (tripId, inviteId) => request(`/api/trips/${tripId}/invites/${inviteId}`, { method: 'DELETE' }),
+  tripFeed: (tripId) => request(`/api/trips/${tripId}/feed?size=100`),
+  invitePreview: (token) => request(`/api/invites/${encodeURIComponent(token)}`, { cache: 'no-store' }),
+  acceptInvite: (token) => request(`/api/invites/${encodeURIComponent(token)}/accept`, { method: 'POST' }),
   adminOrderPrintFile: (id) => request(`/api/admin/orders/${id}/print`, { cache: 'no-store' }),
   adminUpdateOrder: (id, status, note) => request(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note: note ?? null }) }),
 };

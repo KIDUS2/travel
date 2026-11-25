@@ -9,6 +9,7 @@ import { regionName } from '../../lib/regions';
 import { useAsync } from '../../lib/useAsync';
 import { MemoryForm } from './MemoryForm';
 import { PhotoImport } from './PhotoImport';
+import { ShareTrip } from './ShareTrip';
 import { PendingUploads } from '../../offline/OfflineUi';
 import { onSynced } from '../../offline/outbox';
 import { PRIVACY_LABEL, PRIVACY_ORDER } from './privacy';
@@ -17,13 +18,22 @@ const DAY_COLORS = ['var(--flag-green)', 'var(--flag-yellow)', 'var(--flag-red)'
 
 export function Memories() {
   const [params, setParams] = useSearchParams();
-  const [tripFilter, setTripFilter] = useState<string>('');
+  const [tripFilter, setTripFilter] = useState<string>(params.get('trip') ?? '');
+  const [sharing, setSharing] = useState(false);
+  const [authors, setAuthors] = useState<Map<string, { name: string; mine: boolean }>>(new Map());
   const [showForm, setShowForm] = useState(params.get('new') === '1');
   const [editing, setEditing] = useState<Memory | null>(null);
   const [importing, setImporting] = useState(false);
 
   const tripsQ = useAsync(() => api.listTrips(), []);
-  const memQ = useAsync(() => api.listMemories({ tripId: tripFilter || undefined, size: 100 }), [tripFilter]);
+  // A trip shows everything you can see in it (shared trips include other members' memories).
+  const memQ = useAsync(async () => {
+    if (!tripFilter) { setAuthors(new Map()); return api.listMemories({ size: 100 }); }
+    const feed = await api.tripFeed(tripFilter);
+    setAuthors(new Map(feed.items.map((i) => [i.memory.id, { name: i.authorName, mine: i.mine }])));
+    return { items: feed.items.map((i) => i.memory), page: 0, size: feed.items.length, total: feed.total };
+  }, [tripFilter]);
+  const isMine = (m: Memory) => authors.get(m.id)?.mine ?? true;
 
   // Refresh when memories saved offline reach the server.
   useEffect(() => onSynced(() => { void memQ.reload(); void tripsQ.reload(); }), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -33,6 +43,8 @@ export function Memories() {
   const selectedId = params.get('id') ?? memories[0]?.id;
   const selected = memories.find((m) => m.id === selectedId) ?? memories[0];
   const trip = trips.find((t) => t.id === tripFilter);
+  const writableTrips = trips.filter((t) => t.role !== 'VIEWER');
+  const canAdd = !trip || trip.role !== 'VIEWER';
   const groups = useMemo(() => groupByDay(memories, trip), [memories, trip]);
 
   function select(id: string) {
@@ -70,12 +82,17 @@ export function Memories() {
       <PageHeader
         title="Memory vault"
         am="የትዝታ ማህደር"
-        eyebrow={trip ? `Trip · ${trip.name}${trip.startDate ? ` · ${trip.startDate} – ${trip.endDate ?? ''}` : ''}` : 'All your memories'}
+        eyebrow={trip ? `Trip · ${trip.name}${trip.startDate ? ` · ${trip.startDate} – ${trip.endDate ?? ''}` : ''}${trip.role !== 'OWNER' ? ` · shared by ${trip.ownerName ?? 'a traveler'}` : ''}` : 'All your memories'}
         actions={
           <>
             <Link to="/books" className="btn"><Icon name="book" size={18} />Make a book</Link>
-            <button type="button" className="btn" onClick={() => setImporting(true)}><Icon name="photo" size={18} />Import photos</button>
-            <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}><Icon name="plus" size={18} stroke={2.6} />New memory</button>
+            {trip ? (
+              <button type="button" className="btn" onClick={() => setSharing(true)}>
+                <Icon name={trip.role === 'OWNER' ? 'share' : 'users'} size={18} />{trip.role === 'OWNER' ? (trip.memberCount ? `Shared · ${trip.memberCount + 1} people` : 'Share trip') : 'Members'}
+              </button>
+            ) : null}
+            {canAdd ? <button type="button" className="btn" onClick={() => setImporting(true)}><Icon name="photo" size={18} />Import photos</button> : null}
+            {canAdd ? <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}><Icon name="plus" size={18} stroke={2.6} />New memory</button> : null}
           </>
         }
       />
@@ -84,6 +101,7 @@ export function Memories() {
         <button type="button" className="pill dark" aria-pressed={tripFilter === ''} onClick={() => setTripFilter('')}>All memories</button>
         {trips.map((t) => (
           <button key={t.id} type="button" className="pill dark" aria-pressed={tripFilter === t.id} onClick={() => setTripFilter(t.id)}>
+            {t.role !== 'OWNER' || t.memberCount ? <span style={{ marginRight: 4, display: 'inline-flex' }}><Icon name="users" size={14} /></span> : null}
             {t.name} <span className="muted" style={{ color: 'inherit', opacity: 0.7 }}>· {t.memoryCount}</span>
           </button>
         ))}
@@ -123,6 +141,7 @@ export function Memories() {
                       <span className="stack" style={{ gap: 4, minWidth: 0 }}>
                         <span style={{ fontWeight: 600 }}>{m.title}</span>
                         <span className="muted small">{m.media.length} files · {PRIVACY_LABEL[m.privacy].en}{m.placeName ? ` · ${m.placeName}` : ''}</span>
+                        {!isMine(m) ? <span className="author-chip"><span className="avatar" aria-hidden="true">{authors.get(m.id)!.name.charAt(0)}</span>{authors.get(m.id)!.name}</span> : null}
                       </span>
                     </button>
                   );
@@ -133,18 +152,23 @@ export function Memories() {
 
           {selected ? (
             <MemoryDetail memory={selected} onPrivacy={(p) => changePrivacy(selected, p)} onEdit={() => setEditing(selected)}
-              onDelete={() => remove(selected)} onAddFiles={(f) => addFiles(selected, f)} />
+              onDelete={() => remove(selected)} onAddFiles={(f) => addFiles(selected, f)}
+              author={isMine(selected) ? undefined : authors.get(selected.id)?.name} />
           ) : null}
         </div>
       ) : null}
 
+      {sharing && trip ? (
+        <ShareTrip trip={trip} onClose={() => { setSharing(false); void tripsQ.reload(); }}
+          onLeft={() => { setSharing(false); setTripFilter(''); void tripsQ.reload(); }} />
+      ) : null}
       {importing ? (
-        <PhotoImport trips={trips} onClose={() => setImporting(false)}
+        <PhotoImport trips={writableTrips} onClose={() => setImporting(false)}
           onDone={(tid) => { setImporting(false); void tripsQ.reload(); if (tid) setTripFilter(tid); void memQ.reload(); }}
           onQueued={() => setImporting(false)} />
       ) : null}
       {showForm || editing ? (
-        <MemoryForm trips={trips} defaultTripId={tripFilter || undefined} existing={editing ?? undefined}
+        <MemoryForm trips={writableTrips} defaultTripId={canAdd ? tripFilter || undefined : undefined} existing={editing ?? undefined}
           onClose={() => { setShowForm(false); setEditing(null); setParams((p) => { p.delete('new'); return p; }, { replace: true }); }}
           onSaved={onSaved}
           onQueued={() => { setShowForm(false); setEditing(null); setParams((p) => { p.delete('new'); return p; }, { replace: true }); }} />
@@ -153,8 +177,10 @@ export function Memories() {
   );
 }
 
-function MemoryDetail({ memory: m, onPrivacy, onEdit, onDelete, onAddFiles }: {
+function MemoryDetail({ memory: m, onPrivacy, onEdit, onDelete, onAddFiles, author }: {
   memory: Memory;
+  /** Set when another trip member added this memory: then it is read-only for you. */
+  author?: string;
   onPrivacy: (p: Privacy) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -195,6 +221,12 @@ function MemoryDetail({ memory: m, onPrivacy, onEdit, onDelete, onAddFiles }: {
         {audios.map((a) => <audio key={a.id} controls src={a.url} style={{ width: '100%' }} />)}
         {videos.map((v) => <video key={v.id} controls src={v.url} style={{ width: '100%', borderRadius: 12 }} />)}
 
+        {author ? (
+          <div className="banner info" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Icon name="users" size={16} />Added by <strong>{author}</strong> · {PRIVACY_LABEL[m.privacy].en}. Only {author.split(' ')[0]} can change it.
+          </div>
+        ) : (
+          <>
         <div className="stack" style={{ gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 600 }}>Who can see this? <span className="am muted" style={{ fontWeight: 500 }}>· ማን ያያል?</span></span>
           <div className="pills" role="radiogroup" aria-label="Privacy">
@@ -216,6 +248,8 @@ function MemoryDetail({ memory: m, onPrivacy, onEdit, onDelete, onAddFiles }: {
           <Link to="/books" className="btn" style={{ background: 'var(--yellow-50)', borderColor: 'var(--yellow-50)', color: '#6b4e0a' }}>Add to a book</Link>
           <button type="button" className="btn" onClick={onDelete} style={{ marginLeft: 'auto', color: '#8a0c12' }}><Icon name="trash" size={18} />Delete</button>
         </div>
+          </>
+        )}
       </div>
     </article>
   );

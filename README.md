@@ -191,3 +191,9 @@ In the book editor, **Download PDF** opens the print window at real paper size (
 3. Set real prices under `teguwaz.printing` in `application.yml` (base price per size, extra pages, finish, delivery fees) and `PRINT_PICKUP_ADDRESS`.
 
 An order is marked paid only after the backend verifies the transaction with Chapa (`/v1/transaction/verify`), never from the browser or the callback alone. Each order keeps a snapshot of the pages as ordered. Admins get **Print orders**: open the print file, then move orders through Printing → On the way → Delivered, or cancel (refunds are done in the Chapa dashboard).
+
+### Shared trips
+
+Open a trip in Memories and press **Share trip** to make an invite link: *can add memories* (editor) or *can only look* (viewer). Links work for 14 days, are stored only as a SHA-256 hash, and can be turned off. People join at `/join/<token>` after signing in.
+
+Members see their own memories plus everyone's **Family** and **Public** memories in the trip; **Only me** stays private. Everyone edits only their own memories. Books made from a shared trip can use all members' shared photos. The owner can change roles or remove people; members can leave (their memories stay in their own vault).

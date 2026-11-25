@@ -18,7 +18,13 @@ export interface Trip {
   startDate: string | null;
   endDate: string | null;
   memoryCount: number;
+  /** OWNER, or your role in a trip someone shared with you. */
+  role: TripRole;
+  ownerName: string | null;
+  memberCount: number;
 }
+
+export type TripRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 
 export interface TripInput {
   name: string;
@@ -332,3 +338,12 @@ export interface PrintFile {
   pages: BookPage[];
   photoUrls: Record<string, string>;
 }
+
+// ---- Shared trips ----
+
+export interface TripMember { userId: string; name: string; role: TripRole; you: boolean; joinedAt: string }
+export interface TripInvite { id: string; role: 'EDITOR' | 'VIEWER'; expiresAt: string; uses: number; createdAt: string }
+export interface NewTripInvite { id: string; token: string; role: 'EDITOR' | 'VIEWER'; expiresAt: string }
+export interface InvitePreview { tripId: string; tripName: string; ownerName: string | null; role: 'EDITOR' | 'VIEWER'; alreadyMember: boolean; expired: boolean }
+export interface TripMemory { memory: Memory; authorId: string; authorName: string; mine: boolean }
+export interface TripFeed { items: TripMemory[]; total: number }

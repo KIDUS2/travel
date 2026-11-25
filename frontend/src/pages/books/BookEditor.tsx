@@ -6,6 +6,7 @@ import { pinsFromMemories } from '../../components/EthiopiaMap';
 import { Icon } from '../../components/Icon';
 import { TeguwazMark } from '../../components/TeguwazLogo';
 import { computeCoverage } from '../../lib/coverage';
+import { memoriesForBook } from '../../lib/memoriesForBook';
 import {
   BACKGROUNDS, LAYOUTS, PAGE_MM, PAGE_RATIO, SIZE_LABEL, blankPage, changeLayout, layoutDef, mapPageText, newId,
   pagesForMemory, spreadsOf,
@@ -42,8 +43,10 @@ export function BookEditor() {
 
   // Load the book and every memory (photos from other trips can be added too).
   useEffect(() => {
-    Promise.all([api.getBook(id), api.listMemories({ size: 100 }), api.listBookPhotos(id)])
-      .then(([b, page, photos]) => { setBook(b); setMemories(page.items); setBookPhotos(photos); })
+    api.getBook(id)
+      .then((b) => Promise.all([memoriesForBook(b.tripId), api.listBookPhotos(id)]).then(([mems, photos]) => {
+        setBook(b); setMemories(mems); setBookPhotos(photos);
+      }))
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Could not open this book'));
   }, [id]);
 

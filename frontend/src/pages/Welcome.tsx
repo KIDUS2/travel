@@ -25,6 +25,9 @@ export function Welcome() {
         <div className="welcome-inner">
           <TeguwazLogo />
           <h1 className="am-serif welcome-title">ጉዞህን አስታውስ።<span>Remember every journey.</span></h1>
+          {window.location.pathname.startsWith('/join/') ? (
+            <div className="welcome-invite" role="status">You were invited to a trip. Sign in or create a free account to join it.</div>
+          ) : null}
           <p className="welcome-lead">
             Teguwaz (ተጓዥ, "traveler") keeps your travel memories, maps where you have been, and turns trips into books. Made in Ethiopia, for travelers everywhere.
           </p>
